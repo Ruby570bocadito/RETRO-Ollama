@@ -172,3 +172,138 @@ def search_exploits(keyword: str) -> Dict:
 
 def get_output_dir() -> str:
     return str(OUTPUT_DIR)
+
+
+def ls_directory(path: str = ".") -> Dict:
+    try:
+        target = Path(path)
+        if not target.exists():
+            return {"success": False, "output": "", "error": f"Path not found: {path}"}
+        
+        items = []
+        for item in sorted(target.iterdir()):
+            stat = item.stat()
+            item_type = "dir" if item.is_dir() else "file"
+            items.append({
+                "name": item.name,
+                "type": item_type,
+                "size": stat.st_size if item.is_file() else 0,
+                "modified": datetime.fromtimestamp(stat.st_mtime).strftime("%Y-%m-%d %H:%M")
+            })
+        
+        return {"success": True, "output": items, "error": ""}
+    except Exception as e:
+        return {"success": False, "output": "", "error": str(e)}
+
+
+def get_processes() -> Dict:
+    try:
+        if os.name == 'nt':
+            result = execute_command('tasklist /FO TABLE /NH', timeout=15)
+        else:
+            result = execute_command('ps aux --no-headers', timeout=15)
+        
+        if result["success"]:
+            lines = result["output"].strip().split('\n')[:30]
+            output = "[+] Procesos en ejecucion:\n\n"
+            for line in lines:
+                if line.strip():
+                    output += f"  - {line.strip()}\n"
+            return {"success": True, "output": output, "error": ""}
+        return result
+    except Exception as e:
+        return {"success": False, "output": "", "error": str(e)}
+
+
+def get_network_connections() -> Dict:
+    try:
+        if os.name == 'nt':
+            result = execute_command('netstat -ano | findstr ESTABLISHED', timeout=15)
+        else:
+            result = execute_command('netstat -tun | grep ESTABLISHED', timeout=15)
+        
+        return {"success": result["success"], "output": result["output"][:2000], "error": result["error"]}
+    except Exception as e:
+        return {"success": False, "output": "", "error": str(e)}
+
+
+def get_system_info() -> Dict:
+    try:
+        import platform
+        info = {"os": os.name, "platform": platform.system()}
+        
+        if os.name == 'nt':
+            result = execute_command('systeminfo /FO CSV /NH', timeout=20)
+            if result["success"]:
+                info["systeminfo"] = result["output"][:1500]
+        else:
+            result = execute_command('uname -a && df -h && free -m', timeout=15)
+            if result["success"]:
+                info["systeminfo"] = result["output"]
+        
+        return {"success": True, "output": info, "error": ""}
+    except Exception as e:
+        return {"success": False, "output": "", "error": str(e)}
+
+
+def check_tool(tool_name: str) -> Dict:
+    try:
+        result = execute_command(f'where {tool_name}' if os.name == 'nt' else f'which {tool_name}', timeout=5)
+        
+        if result["success"] and result["output"].strip():
+            return {"success": True, "output": f"{tool_name} found: {result['output'].strip()}", "error": ""}
+        
+        result = execute_command(f'{tool_name} --version', timeout=5)
+        if result["success"]:
+            return {"success": True, "output": f"{tool_name} installed: {result['output'][:200]}", "error": ""}
+        
+        return {"success": False, "output": "", "error": f"{tool_name} not found"}
+    except Exception as e:
+        return {"success": False, "output": "", "error": str(e)}
+
+
+def get_services() -> Dict:
+    try:
+        if os.name == 'nt':
+            result = execute_command('sc query state= all', timeout=20)
+        else:
+            result = execute_command('systemctl list-units --type=service --state=running', timeout=15)
+        
+        if result["success"]:
+            lines = result["output"].strip().split('\n')[:30]
+            output = "[+] Servicios en ejecucion:\n\n"
+            for line in lines:
+                if line.strip():
+                    output += f"  - {line.strip()}\n"
+            return {"success": True, "output": output, "error": ""}
+        return result
+    except Exception as e:
+        return {"success": False, "output": "", "error": str(e)}
+
+
+def get_disk_info() -> Dict:
+    try:
+        if os.name == 'nt':
+            result = execute_command('powershell -Command "Get-PSDrive -PSProvider FileSystem | Select-Object Name, Used, Free | Format-Table -AutoSize"', timeout=15)
+        else:
+            result = execute_command('df -h', timeout=15)
+        
+        if result["success"]:
+            return {"success": True, "output": f"[+] Disco:\n{result['output']}", "error": ""}
+        return result
+    except Exception as e:
+        return {"success": False, "output": "", "error": str(e)}
+
+
+def get_network_info() -> Dict:
+    try:
+        if os.name == 'nt':
+            result = execute_command('ipconfig /all', timeout=15)
+        else:
+            result = execute_command('ip addr show', timeout=15)
+        
+        if result["success"]:
+            return {"success": True, "output": f"[+] Red:\n{result['output'][:3000]}", "error": ""}
+        return result
+    except Exception as e:
+        return {"success": False, "output": "", "error": str(e)}

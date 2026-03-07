@@ -1,2 +1,18 @@
 {"timestamp": "2026-02-27T12:39:01.567319", "prompt": "hola", "model": "dolphin-mixtral:latest", "status": "ALLOWED", "category": "filter_disabled"}
 {"timestamp": "2026-03-07T22:52:07.341886", "prompt": "hola", "model": "dolphin-mixtral:latest", "status": "ALLOWED", "category": "filter_disabled"}
+{"timestamp": "2026-03-07T23:05:11.695682", "prompt": " \"\u00bfqu\u00e9 procesos hay ejecut\u00e1ndose?\"", "model": "llama3:8b", "status": "ALLOWED", "category": "filter_disabled"}
+{"timestamp": "2026-03-07T23:05:20.323786", "prompt": "- \"\u00bfqu\u00e9 hay en la carpeta C:/Users?\"", "model": "llama3:8b", "status": "ALLOWED", "category": "filter_disabled"}
+{"timestamp": "2026-03-07T23:05:23.516711", "prompt": "- \"\u00bfqu\u00e9 informaci\u00f3n del sistema tienes?\"", "model": "llama3:8b", "status": "ALLOWED", "category": "filter_disabled"}
+{"timestamp": "2026-03-07T23:05:45.467443", "prompt": "- \"\u00bfest\u00e1 instalado nmap?\"", "model": "llama3:8b", "status": "ALLOWED", "category": "filter_disabled"}
+{"timestamp": "2026-03-07T23:10:56.643817", "prompt": "\u00bfqu\u00e9 procesos hay ejecut\u00e1ndose?\"", "model": "dolphin-mixtral:latest", "status": "ALLOWED", "category": "filter_disabled"}
+{"timestamp": "2026-03-07T23:11:43.591998", "prompt": "- \"\u00bfqu\u00e9 hay en C:/Users?\"", "model": "dolphin-mixtral:latest", "status": "ALLOWED", "category": "filter_disabled"}
+{"timestamp": "2026-03-07T23:11:59.798517", "prompt": "- \"\u00bfqu\u00e9 informaci\u00f3n del sistema tienes?\"", "model": "dolphin-mixtral:latest", "status": "ALLOWED", "category": "filter_disabled"}
+{"timestamp": "2026-03-07T23:12:57.439519", "prompt": "- \"\u00bfest\u00e1 instalado nmap?\"", "model": "dolphin-mixtral:latest", "status": "ALLOWED", "category": "filter_disabled"}
+{"timestamp": "2026-03-07T23:16:05.393189", "prompt": "\u00bfqu\u00e9 procesos hay?\"", "model": "llama3:8b", "status": "ALLOWED", "category": "filter_disabled"}
+{"timestamp": "2026-03-07T23:16:05.560188", "prompt": "- \"\u00bfqu\u00e9 hay en C:/Users/rafag?\"", "model": "llama3:8b", "status": "ALLOWED", "category": "filter_disabled"}
+{"timestamp": "2026-03-07T23:16:16.968145", "prompt": "- \"\u00bfqu\u00e9 informaci\u00f3n del sistema?\"", "model": "llama3:8b", "status": "ALLOWED", "category": "filter_disabled"}
+{"timestamp": "2026-03-07T23:16:19.019079", "prompt": "- \"\u00bfest\u00e1 nmap instalado?\"", "model": "llama3:8b", "status": "ALLOWED", "category": "filter_disabled"}
+{"timestamp": "2026-03-07T23:20:40.706159", "prompt": "\"\u00bfqu\u00e9 servicios hay?\"", "model": "llama3:8b", "status": "ALLOWED", "category": "filter_disabled"}
+{"timestamp": "2026-03-07T23:20:40.729930", "prompt": "- \"\u00bfqu\u00e9 informaci\u00f3n de disco?\"", "model": "llama3:8b", "status": "ALLOWED", "category": "filter_disabled"}
+{"timestamp": "2026-03-07T23:20:48.778272", "prompt": "- \"\u00bfqu\u00e9 IP tengo?\"", "model": "llama3:8b", "status": "ALLOWED", "category": "filter_disabled"}
+{"timestamp": "2026-03-07T23:23:54.246615", "prompt": "\u00bfqu\u00e9 informaci\u00f3n de disco?", "model": "llama3:8b", "status": "ALLOWED", "category": "filter_disabled"}

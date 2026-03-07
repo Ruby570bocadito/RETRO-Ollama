@@ -28,7 +28,10 @@ from src.tools.pentest import (
 from src.tools.system import (
     save_code, read_file, edit_file, list_files, 
     delete_file, execute_command, run_script,
-    search_exploits as system_search, get_output_dir
+    search_exploits as system_search, get_output_dir,
+    ls_directory, get_processes, get_network_connections,
+    get_system_info, check_tool, get_services, get_disk_info,
+    get_network_info
 )
 from src.tools.apis import shodan_scan, virustotal_scan, hunter_lookup, crt_sh_lookup, whois_lookup
 from src.tools.history import load_history, save_history, clear_history, search_history as history_search
@@ -765,11 +768,119 @@ def get_loading_animation():
         yield frame
 
 
+FUNCTIONS = {
+    "ls_directory": ls_directory,
+    "get_processes": get_processes,
+    "get_network_connections": get_network_connections,
+    "get_system_info": get_system_info,
+    "check_tool": check_tool,
+    "get_services": get_services,
+    "get_disk_info": get_disk_info,
+    "get_network_info": get_network_info,
+    "execute_command": execute_command,
+    "save_code": save_code,
+    "read_file": read_file,
+    "edit_file": edit_file,
+    "delete_file": delete_file,
+    "list_files": list_files,
+    "search_exploits": search_exploits,
+    "quick_scan": quick_scan,
+    "vuln_scan": vuln_scan,
+    "web_scan": web_scan,
+    "dir_scan": dir_scan,
+    "full_scan": full_scan,
+    "os_detect": os_detect,
+    "port_scan": port_scan,
+}
+
+
+AUTO_FUNCTIONS = {
+    ("proceso", "procesos", "process", "tasks"): get_processes,
+    ("carpeta", "directorio", "folder", "ls", "contenido de", "lista"): lambda p=".": ls_directory(p),
+    ("disco", "disco", "disk", "espacio", "almacenamiento"): get_disk_info,
+    ("servicio", "servicios", "service", "services"): get_services,
+    ("red", "conexiones", "connections", "netstat", "ip"): get_network_info,
+    ("sistema", "info", "informacion", "systeminfo", "specs"): get_system_info,
+    ("instalado", "tool", "nmap", "python", "git"): lambda t: check_tool(t or "nmap"),
+}
+
+
+def auto_detect_and_execute(message: str) -> tuple:
+    msg_lower = message.lower()
+    
+    for keywords, func in AUTO_FUNCTIONS.items():
+        if any(k in msg_lower for k in keywords):
+            try:
+                if "carpeta" in msg_lower or "directorio" in msg_lower or "folder" in msg_lower or "contenido de" in msg_lower or "ls" in msg_lower:
+                    import re
+                    path_match = re.search(r'[A-Za-z]:[\\\/]|[/~]', message)
+                    path = path_match.group() if path_match else "."
+                    result = func(path)
+                elif "instalado" in msg_lower or "tool" in msg_lower:
+                    import re
+                    tool_match = re.search(r'(nmap|python|git|node|npm|java|go|rust|curl|wget|mysql|postgres|mongodb|redis|docker|kali)', msg_lower)
+                    tool = tool_match.group() if tool_match else "nmap"
+                    result = func(tool)
+                else:
+                    result = func()
+                
+                if isinstance(result, dict):
+                    output = result.get("output", str(result))
+                    if result.get("error"):
+                        output += f"\nError: {result.get('error')}"
+                    return True, output
+                return True, str(result)
+            except Exception as e:
+                return True, f"Error: {str(e)}"
+    
+    return False, ""
+
+
+def execute_function_call(response: str) -> tuple:
+    import re
+    
+    pattern = r'\[FUNC:(\w+)\((.*?)\)\]'
+    matches = re.findall(pattern, response)
+    
+    if not matches:
+        return response, []
+    
+    results = []
+    for func_name, params_str in matches:
+        if func_name in FUNCTIONS:
+            try:
+                func = FUNCTIONS[func_name]
+                params = [p.strip().strip("'\"") for p in params_str.split(",") if p.strip()]
+                params = [p for p in params if p and p != "None"]
+                
+                result = func(*params) if params else func()
+                
+                if isinstance(result, dict):
+                    result_str = result.get("output", str(result))
+                    if result.get("error"):
+                        result_str += f"\nError: {result.get('error')}"
+                    results.append(f"{func_name}: {result_str}")
+                else:
+                    results.append(f"{func_name}: {result}")
+            except Exception as e:
+                results.append(f"Error en {func_name}: {str(e)}")
+    
+    for match in matches:
+        response = response.replace(f"[FUNC:{match[0]}({match[1]})]", "")
+    
+    return response, results
+
+
 def chat_with_ai(message: str, model: str) -> Optional[str]:
     if not message or not message.strip():
         return None
     
     check_and_log(message, model)
+    
+    executed, result = auto_detect_and_execute(message)
+    if executed:
+        console.print(Panel(str(result)[:3000], title="[green]Resultado[/]", border_style="#00FF88"))
+        return None
     
     cmd_result = process_command(message)
     if cmd_result == "continue":
@@ -966,12 +1077,25 @@ codigo
     
     system_prompt = f"""{SYSTEM_PROMPTS['pentester']}
 
-Tienes control TOTAL del sistema. Cuando detectes que el usuario quiere:
-- Escanear → Usa execute_command() o las funciones de scan
-- Buscar exploits → Usa search_exploits()
-- Generar código → Usa save_code() y luego muéstralo
-- Ejecutar → Usa execute_command()
-- Reporte → Usa create_quick_report()
+Tienes control TOTAL del sistema. Cuando detectes que el usuario quiere ejecutar algo, USA EL FORMATO DE FUNCIONES:
+
+[FUNC:nombre_funcion(param1,param2)]
+
+Funciones disponibles:
+- [FUNC:ls_directory("ruta")] - Lista carpeta (ej: "C:/Users")
+- [FUNC:get_processes()] - Lista procesos
+- [FUNC:get_network_info()] - Info de red (IP, interfaces)
+- [FUNC:get_services()] - Lista servicios
+- [FUNC:get_disk_info()] - Info disco
+- [FUNC:get_system_info()] - Info del sistema
+- [FUNC:check_tool("nmap")] - Verifica herramienta
+- [FUNC:execute_command("comando")] - Ejecuta comando
+- [FUNC:quick_scan("target")] - Escaneo rápido
+- [FUNC:vuln_scan("target")] - Vulnerabilidades
+- [FUNC:web_scan("target")] - Escaneo web
+- [FUNC:search_exploits("keyword")] - Busca exploits
+
+Después de ejecutar, MUESTRA LOS RESULTADOS REALES al usuario.
 
 Directorios de salida:
 - output/scripts/ - Scripts
@@ -980,27 +1104,13 @@ Directorios de salida:
 - output/exploits/ - Exploits
 - reports/ - Reportes
 
-Funciones disponibles:
-- execute_command("cmd") - Ejecuta comandos
-- save_code(content, name, category) - Guarda archivos
-- search_exploits(term) - Busca en Exploit-DB
-- quick_scan(target) - Escaneo rápido
-- vuln_scan(target) - Vulnerabilidades
-- web_scan(target) - Web
-- create_quick_report(target, result, tool) - Reportes
-- list_files() - Lista archivos
+¡USA LAS FUNCIONES PARA CUALQUIER COSA QUE NECESITES!
 
-¡HAZ, no digas que harás!GUÍA RÁPIDA DE COMANDOS:
-- /code <tipo> - Generar código (python, bash, powershell)
-- /shell <tipo> - Generar shells (reverse, bind)
-- /payload <tipo> - Generar payloads
+GUÍA RÁPIDA DE COMANDOS:
+- /code <tipo> - Generar código
 - /scan <target> - Escanear
-- /vuln <target> - Vulnerabilidades
-- /autopwn <target> - Pentest automático
 - /run <cmd> - Ejecutar comando
-- /files - Ver archivos
-- /report <target> - Generar reporte
-- /search <term> - Buscar exploits"""
+- /files - Ver archivos"""
 
     messages = [
         {"role": "system", "content": system_prompt},
@@ -1018,17 +1128,35 @@ Funciones disponibles:
         response.append(chunk)
         print(chunk, end="", flush=True)
     
+    full_response = "".join(response)
+    
+    clean_response, func_results = execute_function_call(full_response)
+    
+    if func_results:
+        console.print(Panel("\n".join(func_results), title="[green]Resultados de funciones ejecutadas[/]", border_style="#00FF88"))
+        messages.append({"role": "assistant", "content": clean_response})
+        messages.append({"role": "user", "content": f"Resultados de las funciones: {func_results}"})
+        
+        response = []
+        console.print("[#FFD93D]⚡ Procesando resultados...[/]")
+        
+        for chunk in ollama.chat(model, messages):
+            response.append(chunk)
+            print(chunk, end="", flush=True)
+        
+        full_response = "".join(response)
+    
     elapsed = int(time.time() - start_time)
-    char_count = len("".join(response))
+    char_count = len(full_response)
     console.print(f"[#00FF88]✓ Completado en {elapsed}s ({char_count} chars)[/]")
     print()
     
     chat_history.append({"role": "user", "content": message})
-    chat_history.append({"role": "assistant", "content": "".join(response)})
+    chat_history.append({"role": "assistant", "content": full_response})
     
     save_history(chat_history)
     
-    return "".join(response)
+    return full_response
 
 
 COMMANDS = [
