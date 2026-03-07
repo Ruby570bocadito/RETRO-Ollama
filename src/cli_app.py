@@ -23,7 +23,7 @@ from src.tools.security import analyze_request, check_and_log, sanitize_target, 
 from src.tools.pentest import (
     quick_scan, full_scan, vuln_scan, web_scan, dir_scan,
     stealth_scan, port_scan, os_detect, search_exploits, aggressive_scan,
-    get_available_tools, dns_enum, subdomain_enum
+    get_available_tools, dns_enum, subdomain_enum, check_all_tools
 )
 from src.tools.system import (
     save_code, read_file, edit_file, list_files, 
@@ -31,13 +31,15 @@ from src.tools.system import (
     search_exploits as system_search, get_output_dir,
     ls_directory, get_processes, get_network_connections,
     get_system_info, check_tool, get_services, get_disk_info,
-    get_network_info
+    get_network_info, check_pentest_env, get_wifi_networks,
+    run_wsl, check_wsl_tools
 )
 from src.tools.apis import shodan_scan, virustotal_scan, hunter_lookup, crt_sh_lookup, whois_lookup
 from src.tools.history import load_history, save_history, clear_history, search_history as history_search
 from src.tools.sessions import create_session, load_session, list_sessions, add_target_to_session, save_result_to_session, get_session_results, add_chat_to_session, delete_session
 from src.tools.cve import search_cve, search_by_keyword, get_recent_exploits, get_stats, format_cve, download_cisa_kev
 from src.reports.generator import create_quick_report
+from src.modes import get_current_mode, set_mode, get_mode_info, list_modes, get_mode_prompt, MODES
 
 app = typer.Typer(help="PTAI - Pentesting AI Tool")
 console = Console()
@@ -59,6 +61,9 @@ BANNER = """
 
 def print_banner():
     console.print(BANNER)
+    current = get_current_mode()
+    mode_info = get_mode_info(current)
+    console.print(f"[bold]Modo:[/] {mode_info['icon']} {mode_info['name']}")
     console.print()
 
 
@@ -435,6 +440,34 @@ def process_command(user_input: str) -> Optional[str]:
     if cmd == "/help":
         show_help()
         return None
+    elif cmd == "/mode":
+        if args:
+            mode = args.lower()
+            if set_mode(mode):
+                mode_info = get_mode_info(mode)
+                console.print(f"[bold]{mode_info['icon']} Modo cambiado a: {mode_info['name']}[/]")
+                console.print(f"{mode_info['description']}")
+                return None
+            else:
+                console.print("[red]Modo no válido. Modos disponibles:[/]")
+                for m, info in MODES.items():
+                    console.print(f"  {info['icon']} {m:12} - {info['name']}")
+                return None
+        else:
+            current = get_current_mode()
+            mode_info = get_mode_info(current)
+            console.print(f"[bold]Modo actual: {mode_info['icon']} {mode_info['name']}[/]")
+            console.print(f"\n[bold]Modos disponibles:[/]")
+            for m, info in MODES.items():
+                marker = "→" if m == current else " "
+                console.print(f"  {marker} {m:12} - {info['icon']} {info['name']}")
+            return None
+    elif cmd == "/modes":
+        console.print(f"\n[bold]Modos disponibles:[/]")
+        for m, info in MODES.items():
+            console.print(f"  {info['icon']} {m:12} - {info['name']}")
+            console.print(f"         {info['description']}")
+        return None
     elif cmd == "/models":
         list_models()
         return None
@@ -777,6 +810,10 @@ FUNCTIONS = {
     "get_services": get_services,
     "get_disk_info": get_disk_info,
     "get_network_info": get_network_info,
+    "check_pentest_env": check_pentest_env,
+    "check_wsl_tools": check_wsl_tools,
+    "run_wsl": run_wsl,
+    "wsl": run_wsl,
     "execute_command": execute_command,
     "save_code": save_code,
     "read_file": read_file,
@@ -801,38 +838,53 @@ AUTO_FUNCTIONS = {
     ("servicio", "servicios", "service", "services"): get_services,
     ("red", "conexiones", "connections", "netstat", "ip"): get_network_info,
     ("sistema", "info", "informacion", "systeminfo", "specs"): get_system_info,
+    ("herramienta", "herramientas", "tools", "tool", "instalada", "disponible"): check_all_tools,
+    ("entorno", "pentest", "ambiente", "configuracion"): check_pentest_env,
+    ("wifi", "wireless", "redes wifi"): get_wifi_networks,
+    ("wsl", "linux", "kali", "ubuntu"): check_wsl_tools,
+    ("wifi", "redes", "networks"): get_wifi_networks,
     ("instalado", "tool", "nmap", "python", "git"): lambda t: check_tool(t or "nmap"),
+    ("ejecuta en wsl", "corre en linux", "wsl"): run_wsl,
 }
 
 
 def auto_detect_and_execute(message: str) -> tuple:
     msg_lower = message.lower()
+    results = []
+    executed_something = False
     
     for keywords, func in AUTO_FUNCTIONS.items():
         if any(k in msg_lower for k in keywords):
             try:
-                if "carpeta" in msg_lower or "directorio" in msg_lower or "folder" in msg_lower or "contenido de" in msg_lower or "ls" in msg_lower:
+                if "carpeta" in msg_lower or "directorio" in msg_lower or "folder" in msg_lower or "contenido de" in msg_lower or "ls " in msg_lower or msg_lower.endswith("ls"):
                     import re
-                    path_match = re.search(r'[A-Za-z]:[\\\/]|[/~]', message)
+                    path_match = re.search(r'[A-Za-z]:[\\\/][^\s]+|/[~]?\w+', message)
                     path = path_match.group() if path_match else "."
                     result = func(path)
+                    executed_something = True
                 elif "instalado" in msg_lower or "tool" in msg_lower:
                     import re
-                    tool_match = re.search(r'(nmap|python|git|node|npm|java|go|rust|curl|wget|mysql|postgres|mongodb|redis|docker|kali)', msg_lower)
+                    tool_match = re.search(r'(nmap|python|git|node|npm|java|go|rust|curl|wget|mysql|postgres|mongodb|redis|docker|kali|nikto|sqlmap|hydra|msfconsole)', msg_lower)
                     tool = tool_match.group() if tool_match else "nmap"
                     result = func(tool)
+                    executed_something = True
                 else:
                     result = func()
+                    executed_something = True
                 
                 if isinstance(result, dict):
                     output = result.get("output", str(result))
                     if result.get("error"):
                         output += f"\nError: {result.get('error')}"
-                    return True, output
-                return True, str(result)
+                    results.append(output)
+                else:
+                    results.append(str(result))
             except Exception as e:
-                return True, f"Error: {str(e)}"
+                results.append(f"Error: {str(e)}")
+                executed_something = True
     
+    if executed_something:
+        return True, "\n\n".join(results)
     return False, ""
 
 
@@ -1075,42 +1127,30 @@ codigo
     if auto_result:
         return auto_result
     
-    system_prompt = f"""{SYSTEM_PROMPTS['pentester']}
+    current_mode = get_current_mode()
+    mode_info = get_mode_info(current_mode)
+    system_prompt = get_mode_prompt(current_mode)
 
-Tienes control TOTAL del sistema. Cuando detectes que el usuario quiere ejecutar algo, USA EL FORMATO DE FUNCIONES:
+    system_prompt += f"""
 
+MODO ACTUAL: {mode_info['name']}
+{mode_info['description']}
+
+Puedes ejecutar VARIAS funciones en secuencia para completar una tarea.
+
+USA EL FORMATO DE FUNCIONES:
 [FUNC:nombre_funcion(param1,param2)]
 
-Funciones disponibles:
-- [FUNC:ls_directory("ruta")] - Lista carpeta (ej: "C:/Users")
-- [FUNC:get_processes()] - Lista procesos
-- [FUNC:get_network_info()] - Info de red (IP, interfaces)
-- [FUNC:get_services()] - Lista servicios
-- [FUNC:get_disk_info()] - Info disco
-- [FUNC:get_system_info()] - Info del sistema
-- [FUNC:check_tool("nmap")] - Verifica herramienta
-- [FUNC:execute_command("comando")] - Ejecuta comando
-- [FUNC:quick_scan("target")] - Escaneo rápido
-- [FUNC:vuln_scan("target")] - Vulnerabilidades
-- [FUNC:web_scan("target")] - Escaneo web
-- [FUNC:search_exploits("keyword")] - Busca exploits
+Funciones adicionales:
+- [FUNC:execute_command("cmd")] - Ejecuta comandos
+- [FUNC:ls_directory("path")] - Lista directorios
+- [FUNC:get_processes()] - Procesos
+- [FUNC:get_system_info()] - Info sistema
+- [FUNC:get_network_info()] - Info red
+- [FUNC:check_tool("nombre")] - Verifica herramienta
+- [FUNC:save_code("contenido", "nombre", "categoria")] - Guarda archivo
 
-Después de ejecutar, MUESTRA LOS RESULTADOS REALES al usuario.
-
-Directorios de salida:
-- output/scripts/ - Scripts
-- output/tools/ - Herramientas  
-- output/payloads/ - Payloads
-- output/exploits/ - Exploits
-- reports/ - Reportes
-
-¡USA LAS FUNCIONES PARA CUALQUIER COSA QUE NECESITES!
-
-GUÍA RÁPIDA DE COMANDOS:
-- /code <tipo> - Generar código
-- /scan <target> - Escanear
-- /run <cmd> - Ejecutar comando
-- /files - Ver archivos"""
+¡HAZ, NO DIGAS QUE HARÁS!"""
 
     messages = [
         {"role": "system", "content": system_prompt},
@@ -1160,7 +1200,7 @@ GUÍA RÁPIDA DE COMANDOS:
 
 
 COMMANDS = [
-    "/help", "/models", "/setmodel", "/files", "/output", "/clear", "/exit",
+    "/help", "/mode", "/modes", "/models", "/setmodel", "/files", "/output", "/clear", "/exit",
     "/code", "/shell", "/payload", "/scan", "/vuln", "/web", "/dir", "/full",
     "/stealth", "/os", "/autopwn", "/fullpentest", "/enum", "/dns", "/subdomain",
     "/run", "/search", "/report", "/reporthtml", "/exec", "/tools", "/shodan", "/virus",

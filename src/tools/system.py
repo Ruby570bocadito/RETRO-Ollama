@@ -307,3 +307,79 @@ def get_network_info() -> Dict:
         return result
     except Exception as e:
         return {"success": False, "output": "", "error": str(e)}
+
+
+def check_pentest_env() -> Dict:
+    checks = []
+    
+    if os.name == 'nt':
+        result = execute_command('where nmap', timeout=5)
+        checks.append(("Nmap", result["success"]))
+        
+        result = execute_command('where python', timeout=5)
+        checks.append(("Python", result["success"]))
+        
+        result = execute_command('where docker', timeout=5)
+        checks.append(("Docker", result["success"]))
+        
+        result = execute_command('where git', timeout=5)
+        checks.append(("Git", result["success"]))
+        
+        result = execute_command('where curl', timeout=5)
+        checks.append(("Curl", result["success"]))
+        
+        result = execute_command('where wsl', timeout=5)
+        checks.append(("WSL", result["success"]))
+        
+        result = execute_command('systeminfo | findstr /B /C:"OS Name" /C:"OS Version"', timeout=10)
+        os_info = result["output"].strip() if result["success"] else "Windows"
+    else:
+        for tool in ["nmap", "python3", "docker", "git", "curl"]:
+            result = execute_command(f"which {tool}", timeout=5)
+            checks.append((tool.capitalize(), result["success"]))
+        
+        result = execute_command("uname -a", timeout=5)
+        os_info = result["output"].strip() if result["success"] else "Linux"
+    
+    output = f"[+] Entorno de Pentesting\n"
+    output += f"  SO: {os_info}\n\n"
+    output += "[+] Herramientas:\n"
+    for name, installed in checks:
+        status = "[+]" if installed else "[-]"
+        output += f"  {status} {name}\n"
+    
+    return {"success": True, "output": output, "error": ""}
+
+
+def get_wifi_networks() -> Dict:
+    try:
+        if os.name == 'nt':
+            result = execute_command('netsh wlan show networks mode=bssid', timeout=15)
+        else:
+            result = execute_command('nmcli dev wifi', timeout=15)
+        
+        if result["success"]:
+            return {"success": True, "output": f"[+] Redes WiFi:\n{result['output'][:2000]}", "error": ""}
+        return result
+    except Exception as e:
+        return {"success": False, "output": "", "error": str(e)}
+
+
+def run_wsl(command: str) -> Dict:
+    try:
+        result = execute_command(f'wsl {command}', timeout=60)
+        return result
+    except Exception as e:
+        return {"success": False, "output": "", "error": str(e)}
+
+
+def check_wsl_tools() -> Dict:
+    tools = ["nmap", "nikto", "sqlmap", "hydra", "searchsploit", "gobuster", "msfconsole"]
+    output = "[+] Herramientas en WSL:\n\n"
+    
+    for tool in tools:
+        result = execute_command(f'wsl which {tool}', timeout=10)
+        status = "[+]" if result["success"] and result["output"].strip() else "[-]"
+        output += f"  {status} {tool}\n"
+    
+    return {"success": True, "output": output, "error": ""}
