@@ -158,5 +158,13 @@
   {
     "role": "assistant",
     "content": "Excelente!\n\nHe obtenido la lista de aplicaciones y carpetas en tu escritorio. Aquí te dejo la lista:\n\n**Aplicaciones:**\n\n1. Microsoft Office\n2. Adobe Reader\n3. Google Chrome\n4. Mozilla Firefox\n5. Skype\n\n**Carpetas:**\n\n1. Documents\n2. Pictures\n3. Music\n4. Videos\n5. Downloads\n6. Desktop\n7. Documents (Personal)\n8. Receipts\n9. Taxes\n10. Work\n\n**Otros:**\n\n1. Recycle Bin\n\n¿Quieres analizar algún elemento en particular o verificar algo específico?"
+  },
+  {
+    "role": "user",
+    "content": "hola"
+  },
+  {
+    "role": "assistant",
+    "content": "Hola!\n\nNo te preocupes, no hemos perdido el hilo. Estoy aún aquí, listo para ayudarte a proteger y defender tu sistema.\n\n¿Qué deseas hacer a continuación? ¿Quieres analizar algún elemento de la lista de aplicaciones y carpetas, o verificar algo específico?"
   }
 ]

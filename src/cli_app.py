@@ -19,7 +19,30 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from src.ollama_client import OllamaClient
 from src.ai.prompts import SYSTEM_PROMPTS
-from src.tools.security import analyze_request, check_and_log, sanitize_target, validate_command
+# security.py eliminado — sin filtros en herramienta de auditoría
+import json
+from datetime import datetime as _dt
+
+BASE_DIR_AUDIT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+AUDIT_LOG_PATH = os.path.join(BASE_DIR_AUDIT, "audit.log")
+
+def sanitize_target(target: str) -> str:
+    """Devuelve el target tal cual — sin filtros."""
+    return target.strip() if target else target
+
+def validate_command(command: str):
+    """Sin filtros — auditoría con permiso."""
+    return True, None
+
+def check_and_log(prompt: str, model: str = "unknown"):
+    """Solo loguea; no bloquea nada."""
+    try:
+        entry = json.dumps({"timestamp": _dt.now().isoformat(), "prompt": prompt[:200], "model": model}) + "\n"
+        with open(AUDIT_LOG_PATH, "a", encoding="utf-8") as f:
+            f.write(entry)
+    except:
+        pass
+    return True, "ALLOWED"
 from src.tools.pentest import (
     quick_scan, full_scan, vuln_scan, web_scan, dir_scan,
     stealth_scan, port_scan, os_detect, search_exploits, aggressive_scan,
@@ -49,14 +72,14 @@ chat_history = load_history()[:50]
 
 BANNER = """
 [bold #FF6B35]
-██████╗ ███████╗████████╗██████╗  ██████╗ 
-██╔══██╗██╔════╝╚══██╔══╝██╔══██╗██╔═══██╗
-██████╔╝█████╗     ██║   ██████╔╝██║   ██║
-██╔══██╗██╔══╝     ██║   ██╔══██╗██║   ██║
-██║  ██║███████╗   ██║   ██║  ██║╚██████╔╝
-╚═╝  ╚═╝╚══════╝   ╚═╝   ╚═╝  ╚═╝ ╚═════╝ 
+██████╗ ███████╗████████╗██████╗  ██████╗       ██████╗ ██╗     ██╗      █████╗ ███╗   ███╗ █████╗ 
+██╔══██╗██╔════╝╚══██╔══╝██╔══██╗██╔═══██╗     ██╔═══██╗██║     ██║     ██╔══██╗████╗ ████║██╔══██╗
+██████╔╝█████╗     ██║   ██████╔╝██║   ██║     ██║   ██║██║     ██║     ███████║██╔████╔██║███████║
+██╔══██╗██╔══╝     ██║   ██╔══██╗██║   ██║     ██║   ██║██║     ██║     ██╔══██║██║╚██╔╝██║██╔══██║
+██║  ██║███████╗   ██║   ██║  ██║╚██████╔╝     ╚██████╔╝███████╗███████╗██║  ██║██║ ╚═╝ ██║██║  ██║
+╚═╝  ╚═╝╚══════╝   ╚═╝   ╚═╝  ╚═╝ ╚═════╝       ╚═════╝ ╚══════╝╚══════╝╚═╝  ╚═╝╚═╝     ╚═╝╚═╝  ╚═╝
 [/bold #FF6B35]
-[#A0A0A0]PTAI - Pentesting AI Tool[/#A0A0A0]"""
+[#A0A0A0]RETRO-OLLAMA — Pentesting AI Tool con IA Local[/#A0A0A0]"""
 
 
 def print_banner():
@@ -224,6 +247,23 @@ def detect_intent(text: str) -> Dict:
     return intent
 
 
+def _run_with_spinner(label: str, func, *args):
+    """Ejecuta func(*args) en un hilo mientras muestra un spinner animado."""
+    import threading
+    from rich.live import Live
+    from rich.spinner import Spinner as RSpinner
+
+    result_holder = [None]
+    def _worker():
+        result_holder[0] = func(*args)
+
+    t = threading.Thread(target=_worker, daemon=True)
+    t.start()
+    with Live(RSpinner("dots", text=f" [#FFD93D]{label}[/]"), console=console, refresh_per_second=12, transient=True):
+        t.join()
+    return result_holder[0]
+
+
 def auto_execute(intent: Dict) -> Optional[str]:
     raw_target = intent.get("target")
     target = sanitize_target(raw_target) if raw_target else None
@@ -241,7 +281,7 @@ def auto_execute(intent: Dict) -> Optional[str]:
     if action == "scan" and target:
         if tool == "vuln":
             console.print(f"[#FFD93D]🔍 Escaneo de vulnerabilidades en {target}...[/]")
-            result = vuln_scan(target)
+            result = _run_with_spinner(f"Vuln scan en {target}...", vuln_scan, target)
             if result["success"]:
                 console.print(Panel(result["output"][:3000], title=f"Vuln Scan - {target}", border_style="#FF4757"))
                 return "Escaneo completado. ¿Analizo los resultados?"
@@ -262,8 +302,8 @@ def auto_execute(intent: Dict) -> Optional[str]:
             return "Escaneo de directorios completado."
         
         elif tool == "full":
-            console.print(f"[#FFD93D]🔍 Escaneo completo en {target}...[/]")
-            result = full_scan(target)
+            console.print(f"[#FFD93D]🔍 Escaneo completo en {target} (puede tardar minutos)...[/]")
+            result = _run_with_spinner(f"Full scan en {target}...", full_scan, target)
             if result["success"]:
                 console.print(Panel(result["output"][:3000], title=f"Full Scan - {target}", border_style="#00FF88"))
             return "Escaneo completo terminado."
@@ -284,7 +324,7 @@ def auto_execute(intent: Dict) -> Optional[str]:
         
         elif tool == "os":
             console.print(f"[#FFD93D]🔍 Deteccion de SO en {target}...[/]")
-            result = os_detect(target)
+            result = _run_with_spinner(f"OS detect en {target}...", os_detect, target)
             if result["success"]:
                 console.print(Panel(result["output"][:3000], title=f"OS Detect - {target}", border_style="#00FF88"))
             else:
@@ -486,6 +526,21 @@ def process_command(user_input: str) -> Optional[str]:
         return None
     elif cmd == "/output":
         return get_output_dir()
+    elif cmd == "/status":
+        current = get_current_mode()
+        mode_info = get_mode_info(current)
+        available_tools = get_available_tools()
+        tool_count = sum(len(v) for v in available_tools.values())
+        table = Table(title="[bold #FF6B35]RETRO-OLLAMA Status[/]", box=box.ROUNDED)
+        table.add_column("Campo", style="#FFD93D", no_wrap=True)
+        table.add_column("Valor", style="#00FF88")
+        table.add_row("Modelo activo", current_model or "[yellow]No seleccionado[/]")
+        table.add_row("Modo", f"{mode_info['icon']} {mode_info['name']}")
+        table.add_row("Mensajes en historial", str(len(chat_history)))
+        table.add_row("Herramientas disponibles", str(tool_count) if tool_count else "[red]Ninguna[/]")
+        table.add_row("Salida", get_output_dir())
+        console.print(table)
+        return None
     elif cmd == "/clear":
         console.clear()
         print_banner()
@@ -1190,49 +1245,60 @@ Funciones adicionales:
     ]
     
     import time
+    from rich.live import Live
+    from rich.spinner import Spinner as RSpinner
+    from rich.text import Text
+
     start_time = time.time()
     response = []
-    
-    console.print("[#FFD93D]⚡ Procesando...[/]")
-    
-    for chunk in ollama.chat(model, messages):
-        response.append(chunk)
-        print(chunk, end="", flush=True)
-    
+
+    # --- Spinner animado mientras la IA genera ---
+    spinner_text = Text()
+    with Live(RSpinner("dots", text=" [#FFD93D]Pensando...[/]"), console=console, refresh_per_second=12, transient=True):
+        for chunk in ollama.chat(model, messages):
+            response.append(chunk)
+
     full_response = "".join(response)
-    
+
+    # Mostrar respuesta en Panel limpio
+    if full_response.strip():
+        console.print(Panel(full_response.strip(), title="[bold #FF6B35]🤖 RETRO-OLLAMA[/]", border_style="#FF6B35", padding=(0, 1)))
+
     clean_response, func_results = execute_function_call(full_response)
-    
+
     if func_results:
         console.print(Panel("\n".join(func_results), title="[green]Resultados de funciones ejecutadas[/]", border_style="#00FF88"))
         messages.append({"role": "assistant", "content": clean_response})
         messages.append({"role": "user", "content": f"Resultados de las funciones: {func_results}"})
-        
+
         response = []
-        console.print("[#FFD93D]⚡ Procesando resultados...[/]")
-        
-        for chunk in ollama.chat(model, messages):
-            response.append(chunk)
-            print(chunk, end="", flush=True)
-        
+        with Live(RSpinner("dots", text=" [#FFD93D]Procesando resultados...[/]"), console=console, refresh_per_second=12, transient=True):
+            for chunk in ollama.chat(model, messages):
+                response.append(chunk)
+
         full_response = "".join(response)
-    
+        if full_response.strip():
+            console.print(Panel(full_response.strip(), title="[bold #FF6B35]🤖 RETRO-OLLAMA[/]", border_style="#FF6B35", padding=(0, 1)))
+
     elapsed = int(time.time() - start_time)
     char_count = len(full_response)
-    console.print(f"[#00FF88]✓ Completado en {elapsed}s ({char_count} chars)[/]")
-    print()
-    
+    console.print(f"[#00FF88]✓ {elapsed}s · {char_count} chars[/]")
+
     chat_history.append({"role": "user", "content": message})
     chat_history.append({"role": "assistant", "content": full_response})
-    
+
+    # --- Mejora 2: trim de historial — mantener máximo 60 mensajes ---
+    if len(chat_history) > 60:
+        chat_history[:] = chat_history[-60:]
+
     save_history(chat_history)
-    
+
     return full_response
 
 
 COMMANDS = [
     "/help", "/mode", "/modes", "/models", "/setmodel", "/files", "/output", "/clear", "/exit",
-    "/code", "/shell", "/payload", "/scan", "/vuln", "/web", "/dir", "/full",
+    "/status", "/code", "/shell", "/payload", "/scan", "/vuln", "/web", "/dir", "/full",
     "/stealth", "/os", "/autopwn", "/fullpentest", "/enum", "/dns", "/subdomain",
     "/run", "/search", "/report", "/reporthtml", "/exec", "/tools", "/shodan", "/virus",
     "/hunter", "/crt", "/whois", "/history", "/clearhistory",

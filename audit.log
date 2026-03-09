@@ -41,3 +41,4 @@
 {"timestamp": "2026-03-09T16:29:08.044981", "prompt": "generame un codigo de post explotacion para ubuntu", "model": "llama3:8b", "status": "ALLOWED", "category": "filter_disabled"}
 {"timestamp": "2026-03-09T16:29:35.371526", "prompt": "/code generame un codigo de post explotacion para ubuntu", "model": "llama3:8b", "status": "ALLOWED", "category": "filter_disabled"}
 {"timestamp": "2026-03-09T16:30:19.065773", "prompt": "/code un codigo de escaneo con nmap a una ip que yo diga en cli", "model": "llama3:8b", "status": "ALLOWED", "category": "filter_disabled"}
+{"timestamp": "2026-03-09T16:41:39.847903", "prompt": "hola", "model": "llama3:8b"}
