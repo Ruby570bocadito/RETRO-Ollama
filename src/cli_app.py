@@ -447,6 +447,7 @@ def process_command(user_input: str) -> Optional[str]:
                 mode_info = get_mode_info(mode)
                 console.print(f"[bold]{mode_info['icon']} Modo cambiado a: {mode_info['name']}[/]")
                 console.print(f"{mode_info['description']}")
+                print_banner()
                 return None
             else:
                 console.print("[red]Modo no válido. Modos disponibles:[/]")
@@ -832,23 +833,24 @@ FUNCTIONS = {
 
 
 AUTO_FUNCTIONS = {
+    ("carpeta", "directorio", "folder", "ls", "contenido de", "lista", "escritorio", "desktop", "archivos", "ficheros", "enumerate", "enumera", "que tienes", "que hay", "tienes instalado", "tenes", "que archivos"): lambda p=os.path.expanduser("~/Desktop"): ls_directory(p),
     ("proceso", "procesos", "process", "tasks"): get_processes,
-    ("carpeta", "directorio", "folder", "ls", "contenido de", "lista"): lambda p=".": ls_directory(p),
     ("disco", "disco", "disk", "espacio", "almacenamiento"): get_disk_info,
     ("servicio", "servicios", "service", "services"): get_services,
     ("red", "conexiones", "connections", "netstat", "ip"): get_network_info,
     ("sistema", "info", "informacion", "systeminfo", "specs"): get_system_info,
-    ("herramienta", "herramientas", "tools", "tool", "instalada", "disponible"): check_all_tools,
-    ("entorno", "pentest", "ambiente", "configuracion"): check_pentest_env,
+    ("herramienta", "herramientas", "tools", "tool", "instalada", "disponible", "descargadas"): check_all_tools,
+    ("wsl", "linux", "kali", "ubuntu", "ejecuta en", "corre en"): check_wsl_tools,
     ("wifi", "wireless", "redes wifi"): get_wifi_networks,
-    ("wsl", "linux", "kali", "ubuntu"): check_wsl_tools,
     ("wifi", "redes", "networks"): get_wifi_networks,
     ("instalado", "tool", "nmap", "python", "git"): lambda t: check_tool(t or "nmap"),
-    ("ejecuta en wsl", "corre en linux", "wsl"): run_wsl,
 }
 
 
 def auto_detect_and_execute(message: str) -> tuple:
+    if message.strip().startswith('/'):
+        return False, ""
+    
     msg_lower = message.lower()
     results = []
     executed_something = False
@@ -874,6 +876,17 @@ def auto_detect_and_execute(message: str) -> tuple:
                 
                 if isinstance(result, dict):
                     output = result.get("output", str(result))
+                    if isinstance(output, list):
+                        lines = []
+                        for item in output:
+                            if isinstance(item, dict):
+                                name = item.get('name', '')
+                                ftype = item.get('type', 'file')
+                                size = item.get('size', 0)
+                                lines.append(f"{'[DIR]' if ftype == 'dir' else '[FILE]'} {name} ({size} bytes)")
+                            else:
+                                lines.append(str(item))
+                        output = "\n".join(lines)
                     if result.get("error"):
                         output += f"\nError: {result.get('error')}"
                     results.append(output)
@@ -1057,15 +1070,23 @@ codigo
         start_time = time.time()
         response = []
         
-        for chunk in ollama.chat(use_model, messages):
-            response.append(chunk)
-            print(chunk, end="", flush=True)
+        try:
+            for chunk in ollama.chat(use_model, messages):
+                response.append(chunk)
+        except Exception as e:
+            console.print(f"[#FF4757]Error en generación: {str(e)}[/]")
+            return f"Error: {str(e)}"
         
         elapsed = int(time.time() - start_time)
         full_response = "".join(response)
         char_count = len(full_response)
         
         console.print(f"\n[#00FF88]✓ Completado en {elapsed}s [{char_count} chars][/]")
+        
+        if full_response.strip():
+            sys.stdout.write(full_response)
+            sys.stdout.flush()
+            console.print(Panel(full_response[:5000], title="Respuesta IA", border_style="#00FF88"))
         
         code_match = None
         detected_lang = "py"
@@ -1106,21 +1127,31 @@ codigo
                 detected_lang = 'py'
             elif '$socket' in full_response or 'Get-Process' in full_response:
                 detected_lang = 'ps1'
+            elif 'nmap' in full_response.lower() or 'ping' in full_response.lower() or 'curl' in full_response.lower() or 'wget' in full_response.lower():
+                detected_lang = 'sh'
+            elif full_response.strip().startswith('```'):
+                detected_lang = 'txt'
         
         if code_match:
-            ext = f".{detected_lang}"
-            stop_words = ['un', 'una', 'para', 'de', 'el', 'la', 'creame', 'genera', 'make', 'me', 'un', 'un', 'un']
-            name_words = [w for w in prompt.split() if w.lower() not in stop_words and len(w) > 2]
-            name = "_".join(name_words[:3]) if name_words else "script"
-            filename = f"{name}{ext}"
-            
-            from src.tools.system import save_code
-            filepath = save_code(code_match, filename, "scripts")
-            console.print(f"[#00FF88]✓ Código guardado en: {filepath}[/]")
+            if detected_lang == 'txt' or len(code_match.strip()) < 30:
+                console.print("[yellow]⚠ Código muy corto para guardar, mostrándolo directamente:[/]")
+                console.print(Panel(code_match.strip()[:2000], title="Código generado", border_style="#00FF88"))
+            else:
+                ext = f".{detected_lang}"
+                stop_words = ['un', 'una', 'para', 'de', 'el', 'la', 'creame', 'genera', 'make', 'me', 'un', 'un', 'un', 'codigo', 'script']
+                name_words = [w for w in prompt.split() if w.lower() not in stop_words and len(w) > 2]
+                name = "_".join(name_words[:3]) if name_words else "script"
+                filename = f"{name}{ext}"
+                
+                from src.tools.system import save_code
+                filepath = save_code(code_match, filename, "scripts")
+                console.print(f"[#00FF88]✓ Código guardado en: {filepath}[/]")
         
         return None
     elif cmd_result:
         return cmd_result
+    elif cmd_result is None:
+        return None
     
     intent = detect_intent(message)
     auto_result = auto_execute(intent)

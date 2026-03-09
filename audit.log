@@ -16,3 +16,28 @@
 {"timestamp": "2026-03-07T23:20:40.729930", "prompt": "- \"\u00bfqu\u00e9 informaci\u00f3n de disco?\"", "model": "llama3:8b", "status": "ALLOWED", "category": "filter_disabled"}
 {"timestamp": "2026-03-07T23:20:48.778272", "prompt": "- \"\u00bfqu\u00e9 IP tengo?\"", "model": "llama3:8b", "status": "ALLOWED", "category": "filter_disabled"}
 {"timestamp": "2026-03-07T23:23:54.246615", "prompt": "\u00bfqu\u00e9 informaci\u00f3n de disco?", "model": "llama3:8b", "status": "ALLOWED", "category": "filter_disabled"}
+{"timestamp": "2026-03-09T16:01:25.380365", "prompt": "hola", "model": "llama3:8b", "status": "ALLOWED", "category": "filter_disabled"}
+{"timestamp": "2026-03-09T16:01:42.732344", "prompt": "/mode", "model": "llama3:8b", "status": "ALLOWED", "category": "filter_disabled"}
+{"timestamp": "2026-03-09T16:01:50.044700", "prompt": "/mode pentester", "model": "llama3:8b", "status": "ALLOWED", "category": "filter_disabled"}
+{"timestamp": "2026-03-09T16:02:12.328078", "prompt": "puedes crearme un payload sencillo para windows 7?", "model": "llama3:8b", "status": "ALLOWED", "category": "filter_disabled"}
+{"timestamp": "2026-03-09T16:04:33.538207", "prompt": "puedes crearme un payload sencillo para windows 7?'", "model": "llama3:8b", "status": "ALLOWED", "category": "filter_disabled"}
+{"timestamp": "2026-03-09T16:04:42.946833", "prompt": "puedes buscar en web?", "model": "llama3:8b", "status": "ALLOWED", "category": "filter_disabled"}
+{"timestamp": "2026-03-09T16:04:55.991247", "prompt": "/model", "model": "llama3:8b", "status": "ALLOWED", "category": "filter_disabled"}
+{"timestamp": "2026-03-09T16:12:33.305656", "prompt": "/mode pentester", "model": "llama3:8b", "status": "ALLOWED", "category": "filter_disabled"}
+{"timestamp": "2026-03-09T16:12:39.067819", "prompt": "/mode", "model": "llama3:8b", "status": "ALLOWED", "category": "filter_disabled"}
+{"timestamp": "2026-03-09T16:13:12.152304", "prompt": "/code generame un payload para windows 7", "model": "llama3:8b", "status": "ALLOWED", "category": "filter_disabled"}
+{"timestamp": "2026-03-09T16:16:29.007241", "prompt": "/mode pentester", "model": "llama3:8b", "status": "ALLOWED", "category": "filter_disabled"}
+{"timestamp": "2026-03-09T16:16:36.879470", "prompt": "/mode", "model": "llama3:8b", "status": "ALLOWED", "category": "filter_disabled"}
+{"timestamp": "2026-03-09T16:19:58.280329", "prompt": "/mode blue team", "model": "llama3:8b", "status": "ALLOWED", "category": "filter_disabled"}
+{"timestamp": "2026-03-09T16:20:04.727936", "prompt": "/mode blue", "model": "llama3:8b", "status": "ALLOWED", "category": "filter_disabled"}
+{"timestamp": "2026-03-09T16:20:07.663539", "prompt": "hola", "model": "llama3:8b", "status": "ALLOWED", "category": "filter_disabled"}
+{"timestamp": "2026-03-09T16:22:04.151275", "prompt": "que herramientas tengo instalada", "model": "llama3:8b", "status": "ALLOWED", "category": "filter_disabled"}
+{"timestamp": "2026-03-09T16:22:13.975086", "prompt": "que tengo en mi escritorio", "model": "llama3:8b", "status": "ALLOWED", "category": "filter_disabled"}
+{"timestamp": "2026-03-09T16:22:58.884615", "prompt": "pero que tengo en mi escritorio aplicaciones y carptetas", "model": "llama3:8b", "status": "ALLOWED", "category": "filter_disabled"}
+{"timestamp": "2026-03-09T16:23:13.701689", "prompt": "pero enumerame que tengo", "model": "llama3:8b", "status": "ALLOWED", "category": "filter_disabled"}
+{"timestamp": "2026-03-09T16:26:35.377569", "prompt": "que archivos tengo en el escritorio", "model": "llama3:8b", "status": "ALLOWED", "category": "filter_disabled"}
+{"timestamp": "2026-03-09T16:28:31.737094", "prompt": "que archivos tengo en el escritorio", "model": "llama3:8b", "status": "ALLOWED", "category": "filter_disabled"}
+{"timestamp": "2026-03-09T16:28:42.963240", "prompt": "que herramientas tengo descargadas", "model": "llama3:8b", "status": "ALLOWED", "category": "filter_disabled"}
+{"timestamp": "2026-03-09T16:29:08.044981", "prompt": "generame un codigo de post explotacion para ubuntu", "model": "llama3:8b", "status": "ALLOWED", "category": "filter_disabled"}
+{"timestamp": "2026-03-09T16:29:35.371526", "prompt": "/code generame un codigo de post explotacion para ubuntu", "model": "llama3:8b", "status": "ALLOWED", "category": "filter_disabled"}
+{"timestamp": "2026-03-09T16:30:19.065773", "prompt": "/code un codigo de escaneo con nmap a una ip que yo diga en cli", "model": "llama3:8b", "status": "ALLOWED", "category": "filter_disabled"}
