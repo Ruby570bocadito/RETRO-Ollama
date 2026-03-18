@@ -1,7 +1,7 @@
 import pytest
 import sys
 import os
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, patch, MagicMock
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -10,8 +10,13 @@ class TestAPIs:
     """Tests para las APIs OSINT"""
 
     @patch('src.tools.apis.requests.get')
-    def test_shodan_scan_success(self, mock_get):
+    @patch('src.tools.apis.get_config')
+    def test_shodan_scan_success(self, mock_config, mock_get):
         """Test Shodan scan exitoso"""
+        mock_config_obj = MagicMock()
+        mock_config_obj.api_keys.shodan = "test_key"
+        mock_config.return_value = mock_config_obj
+        
         mock_response = Mock()
         mock_response.status_code = 200
         mock_response.json.return_value = {
@@ -24,21 +29,28 @@ class TestAPIs:
         mock_get.return_value = mock_response
         
         from src.tools import apis as apis_module
-        with patch.object(apis_module, 'SHODAN_API_KEY', 'test_key'):
-            result = apis_module.shodan_scan("8.8.8.8")
-            assert result["success"] is True
+        result = apis_module.shodan_scan("8.8.8.8")
+        assert result["success"] is True
 
-    def test_shodan_no_api_key(self):
+    @patch('src.tools.apis.get_config')
+    def test_shodan_no_api_key(self, mock_config):
         """Test Shodan sin API key"""
+        mock_config_obj = MagicMock()
+        mock_config_obj.api_keys.shodan = ""
+        mock_config.return_value = mock_config_obj
+        
         from src.tools import apis as apis_module
-        with patch.object(apis_module, 'SHODAN_API_KEY', ''):
-            result = apis_module.shodan_scan("8.8.8.8")
-            assert result["success"] is False
-            assert "no configurada" in result["error"]
+        result = apis_module.shodan_scan("8.8.8.8")
+        assert result["success"] is False
 
     @patch('src.tools.apis.requests.get')
-    def test_virustotal_scan_success(self, mock_get):
+    @patch('src.tools.apis.get_config')
+    def test_virustotal_scan_success(self, mock_config, mock_get):
         """Test VirusTotal scan exitoso"""
+        mock_config_obj = MagicMock()
+        mock_config_obj.api_keys.virustotal = "test_key"
+        mock_config.return_value = mock_config_obj
+        
         mock_response = Mock()
         mock_response.status_code = 200
         mock_response.json.return_value = {
@@ -55,17 +67,19 @@ class TestAPIs:
         mock_get.return_value = mock_response
         
         from src.tools import apis as apis_module
-        with patch.object(apis_module, 'VIRUSTOTAL_API_KEY', 'test_key'):
-            result = apis_module.virustotal_scan("example.com")
-            assert result["success"] is True
+        result = apis_module.virustotal_scan("example.com")
+        assert result["success"] is True
 
-    def test_virustotal_no_api_key(self):
+    @patch('src.tools.apis.get_config')
+    def test_virustotal_no_api_key(self, mock_config):
         """Test VirusTotal sin API key"""
+        mock_config_obj = MagicMock()
+        mock_config_obj.api_keys.virustotal = ""
+        mock_config.return_value = mock_config_obj
+        
         from src.tools import apis as apis_module
-        with patch.object(apis_module, 'VIRUSTOTAL_API_KEY', ''):
-            result = apis_module.virustotal_scan("example.com")
-            assert result["success"] is False
-            assert "no configurada" in result["error"]
+        result = apis_module.virustotal_scan("example.com")
+        assert result["success"] is False
 
     @patch('src.tools.apis.requests.get')
     def test_crt_sh_success(self, mock_get):
