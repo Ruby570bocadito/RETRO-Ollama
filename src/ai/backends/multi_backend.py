@@ -157,13 +157,19 @@ class LMStudioBackend(LLMBackend):
             with requests.post(f"{self.host}/chat/completions", json=payload, stream=True, timeout=120) as r:
                 for line in r.iter_lines():
                     if line:
-                        line = line.decode('utf-8')
+                        try:
+                            line = line.decode('utf-8')
+                        except:
+                            line = line.decode('latin-1', errors='replace')
                         if line.startswith('data: '):
-                            data = json.loads(line[6:])
-                            if "choices" in data:
-                                delta = data["choices"][0].get("delta", {})
-                                if "content" in delta:
-                                    yield delta["content"]
+                            try:
+                                data = json.loads(line[6:])
+                                if "choices" in data:
+                                    delta = data["choices"][0].get("delta", {})
+                                    if "content" in delta and delta["content"]:
+                                        yield delta["content"]
+                            except json.JSONDecodeError:
+                                continue
         except Exception as e:
             yield f"Error: {str(e)}"
     

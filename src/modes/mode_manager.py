@@ -1,12 +1,23 @@
 import json
+import logging
 from pathlib import Path
 from typing import Dict, Optional
+
 from datetime import datetime
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 BASE_DIR = Path(__file__).parent.parent.parent
 MODE_FILE = BASE_DIR / "mode.json"
 
 MODES = {
+    "autonomous": {
+        "name": "Autonomous",
+        "color": "#808080",
+        "description": "Agente autónomo - Pensamiento, ejecución automática",
+        "icon": "🤖"
+    },
     "pentester": {
         "name": "Pentester",
         "color": "#FF6B35",
@@ -36,6 +47,72 @@ MODES = {
         "color": "#F1C40F",
         "description": "Bug hunting - Recon, vuln hunting, reporting",
         "icon": "🎯"
+    },
+    "redteam": {
+        "name": "Red Team",
+        "color": "#E74C3C",
+        "description": "Simulación de adversario - APT, movimiento lateral",
+        "icon": "🎭"
+    },
+    "vulnassessment": {
+        "name": "Vuln Assessment",
+        "color": "#3498DB",
+        "description": "Evaluación de vulnerabilidades - CVSS, remediación",
+        "icon": "📊"
+    },
+    "network": {
+        "name": "Network",
+        "color": "#2ECC71",
+        "description": "Seguridad de redes - Firewalls, segmentación",
+        "icon": "🌐"
+    },
+    "webapp": {
+        "name": "Web App",
+        "color": "#9B59B6",
+        "description": "Pentesting web - OWASP Top 10, inyecciones",
+        "icon": "🌍"
+    },
+    "social": {
+        "name": "Social Engineering",
+        "color": "#E67E22",
+        "description": "Ingeniería social - Phishing, vishing, awareness",
+        "icon": "🎣"
+    },
+    "devsecops": {
+        "name": "DevSecOps",
+        "color": "#00CED1",
+        "description": "CI/CD security - SAST, DAST, container security",
+        "icon": "⚙️"
+    },
+    "malware": {
+        "name": "Malware Analysis",
+        "color": "#DC143C",
+        "description": "Análisis de malware - Sandbox, reverse engineering",
+        "icon": "🦠"
+    },
+    "iot": {
+        "name": "IoT Security",
+        "color": "#FF8C00",
+        "description": "Seguridad IoT - Protocolos Zigbee, MQTT, CoAP",
+        "icon": "📡"
+    },
+    "cloud": {
+        "name": "Cloud Security",
+        "color": "#4169E1",
+        "description": "AWS, Azure, GCP - Misconfigs, cloud Pentest",
+        "icon": "☁️"
+    },
+    "mobile": {
+        "name": "Mobile Security",
+        "color": "#32CD32",
+        "description": "Android/iOS - APK analysis, jailbreak detection",
+        "icon": "📱"
+    },
+    "compliance": {
+        "name": "Compliance",
+        "color": "#FFD700",
+        "description": "HIPAA, PCI-DSS, ISO27001 - Auditorías",
+        "icon": "📋"
     }
 }
 
@@ -50,13 +127,19 @@ def get_current_mode() -> str:
                 mode = data.get("mode", DEFAULT_MODE)
                 if mode in MODES:
                     return mode
-    except:
-        pass
+                logger.warning(f"Invalid mode '{mode}' in mode.json, using default")
+    except json.JSONDecodeError as e:
+        logger.error(f"Invalid JSON in mode.json: {e}")
+    except IOError as e:
+        logger.error(f"Error reading mode.json: {e}")
+    except Exception as e:
+        logger.error(f"Unexpected error reading mode: {e}")
     return DEFAULT_MODE
 
 
 def set_mode(mode: str) -> bool:
     if mode not in MODES:
+        logger.warning(f"Attempted to set invalid mode: {mode}")
         return False
     
     try:
@@ -65,9 +148,13 @@ def set_mode(mode: str) -> bool:
                 "mode": mode,
                 "timestamp": datetime.now().isoformat()
             }, f, ensure_ascii=False, indent=2)
+        logger.info(f"Mode changed to: {mode}")
         return True
-    except:
-        return False
+    except IOError as e:
+        logger.error(f"Error writing mode.json: {e}")
+    except Exception as e:
+        logger.error(f"Unexpected error setting mode: {e}")
+    return False
 
 
 def get_mode_info(mode: str) -> Optional[Dict]:

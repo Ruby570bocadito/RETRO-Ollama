@@ -51,11 +51,32 @@ def sanitize_target(target: str) -> Optional[str]:
     return None
 
 def validate_command(command: str) -> Tuple[bool, Optional[str]]:
-    dangerous_chars = ['&&', '||', ';', '|', '`', '$(', '${', '\\n', '\\r', '>', '<', '>>']
+    if not command or not command.strip():
+        return False, "Empty command"
     
-    for char in dangerous_chars:
-        if char in command:
-            return False, f"Dangerous character detected: {char}"
+    dangerous_patterns = [
+        (r'&&\s*\w+', 'Command chaining'),
+        (r'\|\|\s*\w+', 'OR chaining'),
+        (r';\s*\w+', 'Command separator'),
+        (r'`[^`]+`', 'Command substitution'),
+        (r'\$\([^)]+\)', 'Command substitution'),
+        (r'\$\{[^}]+\}', 'Variable expansion'),
+        (r'\n|\r', 'Newline injection'),
+        (r'>\s*/dev/', 'Output redirection to device'),
+        (r'>>\s*/', 'Append to file'),
+        (r'<\s*/etc/', 'Input from sensitive file'),
+        (r'\|\s*sh\b', 'Pipe to shell'),
+        (r'\|\s*bash\b', 'Pipe to bash'),
+        (r'\bsudo\s+rm\b', 'sudo rm dangerous'),
+        (r'\brm\s+-rf\b', 'Recursive delete'),
+        (r'\bmkfs\b', 'Filesystem format'),
+        (r'\bdd\s+if=', 'Direct disk access'),
+    ]
+    
+    for pattern, description in dangerous_patterns:
+        import re
+        if re.search(pattern, command, re.IGNORECASE):
+            return False, f"Dangerous pattern detected: {description}"
     
     return True, None
 

@@ -5,9 +5,6 @@ import re
 if sys.platform == 'win32':
     os.system('chcp 65001 >nul')
 
-import io
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
-
 from typing import List, Dict, Optional
 import typer
 from rich.console import Console
@@ -18,31 +15,10 @@ from rich import box
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from src.ollama_client import OllamaClient
+from src.ai.backends.multi_backend import create_client, MultiBackendClient
+from src.config.settings import OLLAMA_HOST, LMSTUDIO_HOST, DEFAULT_BACKEND
 from src.ai.prompts import SYSTEM_PROMPTS
-# security.py eliminado — sin filtros en herramienta de auditoría
-import json
-from datetime import datetime as _dt
-
-BASE_DIR_AUDIT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-AUDIT_LOG_PATH = os.path.join(BASE_DIR_AUDIT, "audit.log")
-
-def sanitize_target(target: str) -> str:
-    """Devuelve el target tal cual — sin filtros."""
-    return target.strip() if target else target
-
-def validate_command(command: str):
-    """Sin filtros — auditoría con permiso."""
-    return True, None
-
-def check_and_log(prompt: str, model: str = "unknown"):
-    """Solo loguea; no bloquea nada."""
-    try:
-        entry = json.dumps({"timestamp": _dt.now().isoformat(), "prompt": prompt[:200], "model": model}) + "\n"
-        with open(AUDIT_LOG_PATH, "a", encoding="utf-8") as f:
-            f.write(entry)
-    except:
-        pass
-    return True, "ALLOWED"
+from src.tools.security import analyze_request, check_and_log, sanitize_target, validate_command
 from src.tools.pentest import (
     quick_scan, full_scan, vuln_scan, web_scan, dir_scan,
     stealth_scan, port_scan, os_detect, search_exploits, aggressive_scan,
@@ -63,75 +39,184 @@ from src.tools.sessions import create_session, load_session, list_sessions, add_
 from src.tools.cve import search_cve, search_by_keyword, get_recent_exploits, get_stats, format_cve, download_cisa_kev
 from src.reports.generator import create_quick_report
 from src.modes import get_current_mode, set_mode, get_mode_info, list_modes, get_mode_prompt, MODES
+from src.tools.compliance import ComplianceChecker
+from src.tools.threat_intel import ThreatIntelligence
+from src.tools.incident_response import IncidentResponse
+from src.tools.metrics import SecurityMetrics
+from src.tools import vuln_db
 
 app = typer.Typer(help="PTAI - Pentesting AI Tool")
 console = Console()
-ollama = OllamaClient()
+
+def get_client(backend_name=None):
+    backend = backend_name or os.getenv("DEFAULT_BACKEND", "ollama")
+    if backend == "lmstudio":
+        return create_client("lmstudio", host=LMSTUDIO_HOST)
+    elif backend == "llamacpp":
+        return create_client("llamacpp", host="http://localhost:8080")
+    else:
+        return create_client("ollama", host=OLLAMA_HOST)
+
+ollama = get_client()
 current_model = None
 chat_history = load_history()[:50]
 
 BANNER = """
-[bold #FF6B35]
-██████╗ ███████╗████████╗██████╗  ██████╗       ██████╗ ██╗     ██╗      █████╗ ███╗   ███╗ █████╗ 
-██╔══██╗██╔════╝╚══██╔══╝██╔══██╗██╔═══██╗     ██╔═══██╗██║     ██║     ██╔══██╗████╗ ████║██╔══██╗
-██████╔╝█████╗     ██║   ██████╔╝██║   ██║     ██║   ██║██║     ██║     ███████║██╔████╔██║███████║
-██╔══██╗██╔══╝     ██║   ██╔══██╗██║   ██║     ██║   ██║██║     ██║     ██╔══██║██║╚██╔╝██║██╔══██║
-██║  ██║███████╗   ██║   ██║  ██║╚██████╔╝     ╚██████╔╝███████╗███████╗██║  ██║██║ ╚═╝ ██║██║  ██║
-╚═╝  ╚═╝╚══════╝   ╚═╝   ╚═╝  ╚═╝ ╚═════╝       ╚═════╝ ╚══════╝╚══════╝╚═╝  ╚═╝╚═╝     ╚═╝╚═╝  ╚═╝
-[/bold #FF6B35]
-[#A0A0A0]RETRO-OLLAMA — Pentesting AI Tool con IA Local[/#A0A0A0]"""
+   ───▐▀▄──────▄▀▌───▄▄▄▄▄▄▄
+───▌▒▒▀▄▄▄▄▀▒▒▐▄▀▀▒██▒██▒▀▀▄
+──▐▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▀▄
+──▌▒▒▒▒▒▒▒▒▒▒▒▒▄▒▒▒▒▒▒▒▒▒▒▒▒▀▄
+▀█▒▒█▌▒▒█▒▒▐█▒▒▀▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▌
+▀▌▒▒▒▒▒▀▒▀▒▒▒▒▒▀▀▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▐ ▄▄
+▐▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▄█▒█
+▐▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒█▀
+──▐▄▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▄▌
+────▀▄▄▀▀▀▀▄▄▀▀▀▀▀▀▄▄▀▀▀▀▀▀▄▄▀
+
+  [ {mode_name} ]   {mode_desc}
+============================================================
+        +++ Powered by Local AI Models +++
+        (Ollama, LM Studio, Llama.cpp)
+============================================================
+"""
+
+MODE_BANNER = ""
+
+MODE_BANNER = """
+   ───▐▀▄──────▄▀▌───▄▄▄▄▄▄▄
+───▌▒▒▀▄▄▄▄▀▒▒▐▄▀▀▒██▒██▒▀▀▄
+──▐▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▀▄
+──▌▒▒▒▒▒▒▒▒▒▒▒▒▄▒▒▒▒▒▒▒▒▒▒▒▒▒▀▄
+▀█▒▒█▌▒▒█▒▒▐█▒▒▀▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▌
+▀▌▒▒▒▒▒▀▒▀▒▒▒▒▒▀▀▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▐ ▄▄
+▐▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▄█▒█
+▐▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒█▀
+──▐▄▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▄▌
+────▀▄▄▀▀▀▀▄▄▀▀▀▀▀▀▄▄▀▀▀▀▀▀▄▄▀
+
+============================================================
+  [ {mode_name} ]   {mode_desc}
+============================================================
+"""
 
 
-def print_banner():
-    console.print(BANNER)
+def print_banner(show_mode=True):
+    from src.modes import get_current_mode, get_mode_info
+    if show_mode:
+        current = get_current_mode()
+        mode_info = get_mode_info(current)
+        console.print(BANNER.format(
+            mode_name=mode_info['name'],
+            mode_desc=mode_info['description']
+        ))
+    else:
+        console.print(BANNER.format(
+            mode_name="RETRO-OLLAMA",
+            mode_desc="Pentesting AI Tool"
+        ))
+    console.print()
+
+
+def print_status():
     current = get_current_mode()
     mode_info = get_mode_info(current)
-    console.print(f"[bold]Modo:[/] {mode_info['icon']} {mode_info['name']}")
+    mode_color = mode_info.get('color', '#808080')
+    mode_icon = mode_info.get('icon', '')
+    console.print(Panel(
+        f" Mode: {mode_info['name']}   |   "
+        f"Model: {current_model or 'N/A'}   |   "
+        f"Output: {get_output_dir()}",
+        border_style=mode_color,
+        box=box.ROUNDED,
+        padding=(0, 1),
+        title=f"[{mode_color}][{mode_icon}] MODO ACTUAL[/]"
+    ))
     console.print()
 
 
 def check_ollama():
     if not ollama.check_connection():
-        console.print("[red]✗ No se pudo conectar a Ollama[/red]")
+        backend_name = os.getenv("DEFAULT_BACKEND", "ollama")
+        console.print(f"[red]X Cannot connect to {backend_name}[/red]")
         return False
-    console.print("[green]✓ Conexión con Ollama exitosa[/green]")
+    console.print(f"[green]OK Connected to {ollama.backend_name}[/green]")
     return True
 
 
 def list_models():
     models = ollama.list_models()
     if not models:
-        console.print("[yellow]No hay modelos disponibles[/yellow]")
+        console.print("[yellow]No models available[/yellow]")
         return []
     
-    table = Table(title="Modelos disponibles", box=box.ROUNDED)
-    table.add_column("Nombre", style="#00FF88")
-    table.add_column("Tamaño", style="#FFD93D")
-    for m in models:
+    table = Table(title="", box=box.SIMPLE, show_header=False)
+    table.add_column("ID", style="#808080", justify="center", width=4)
+    table.add_column("Model", style="#A0A0A0")
+    table.add_column("Size", style="#606060", justify="right")
+    for i, m in enumerate(models, 1):
         size_gb = m.get("size", 0) / (1024**3)
-        table.add_row(m.get("name", "Unknown"), f"{size_gb:.2f} GB")
+        table.add_row(f"[{i}]", m.get("name", "Unknown"), f"{size_gb:.2f} GB")
     console.print(table)
     return models
 
 
 def select_model() -> str:
-    models = list_models()
-    if not models:
-        console.print("[red]No hay modelos disponibles[/red]")
+    global ollama
+    
+    console.print(Panel(
+        "  [1]  Ollama    (localhost:11434)\n"
+        "  [2]  LM Studio (localhost:1234)\n"
+        "  [3]  Llama.cpp (localhost:8080)",
+        title="[#808080]>> Select Backend <<",
+        border_style="#404040",
+        box=box.ROUNDED,
+        padding=(1, 2)
+    ))
+    console.print()
+    backend_choice = console.input("[#808080]>> Choose (1-3): ")
+    
+    if backend_choice == "2":
+        os.environ["DEFAULT_BACKEND"] = "lmstudio"
+        ollama = get_client("lmstudio")
+        backend_name = "LM Studio"
+    elif backend_choice == "3":
+        os.environ["DEFAULT_BACKEND"] = "llamacpp"
+        ollama = get_client("llamacpp")
+        backend_name = "Llama.cpp"
+    else:
+        os.environ["DEFAULT_BACKEND"] = "ollama"
+        ollama = get_client("ollama")
+        backend_name = "Ollama"
+    
+    if not ollama.check_connection():
+        console.print(f"[red]✗ Cannot connect to {backend_name}[/red]")
         sys.exit(1)
-    console.print(f"\n[bold]Selecciona un modelo (1-{len(models)}):[/bold]")
+    
+    console.print(f"[green]OK Connected to {backend_name}[/green]\n")
+    
+    models = ollama.list_models()
+    if not models:
+        console.print("[yellow]No models available on this backend[/yellow]")
+        sys.exit(1)
+    
+    console.print(f"\n[bold #C0C0C0]Available Models on {backend_name} ({len(models)}):")
     for i, m in enumerate(models, 1):
-        console.print(f"  {i}. {m.get('name')}")
+        name = m.get("name", "Unknown")
+        size = m.get("size", 0) / (1024**3)
+        color = "#A0A0A0" if i % 2 == 0 else "#B0B0B0"
+        console.print(f"  [{color}]{i}.[/] {name} [dim]({size:.2f} GB)[/]")
+    
+    console.print(f"\n[bold #909090]▸ Select model (1-{len(models)}):")
     try:
-        choice = int(console.input("\n> ")) - 1
+        choice = int(console.input("\n▸ ")) - 1
         if 0 <= choice < len(models):
             selected = models[choice].get("name", "llama3.2")
-            console.print(f"[#00FF88]✓ Modelo seleccionado: {selected}[/]\n")
+            console.print(f"[#909090]✓[/#909090] [bold]Selected:[/bold] {selected}\n")
             return selected
     except:
         pass
     selected = models[0].get("name", "llama3.2")
-    console.print(f"[#00FF88]✓ Modelo seleccionado: {selected}[/]\n")
+    console.print(f"[#909090]✓[/#909090] [bold]Selected:[/bold] {selected}\n")
     return selected
 
 
@@ -177,91 +262,121 @@ def detect_intent(text: str) -> Dict:
         "params": {}
     }
     
-    greetings = ['hola', 'hello', 'hey', 'hi', 'buenas', 'que tal', 'wenas', 'buenos', 'buenas']
+    greetings = ['hola', 'hello', 'hey', 'hi', 'buenas', 'que tal', 'wenas', 'buenos', 'buenas', 'que onda', 'holiwis']
     if any(text.strip().lower() == g or text.strip().lower().startswith(g + ' ') for g in greetings):
         intent["action"] = "greeting"
         return intent
     
-    if any(w in msg_lower for w in ['escanea', 'scan', 'analiza', 'target', 'objetivo', 'mapea', 'haz un escaneo']):
+    if any(w in msg_lower for w in ['escanea', 'scan', 'analiza', 'target', 'objetivo', 'mapea', 'haz un escaneo', 'hacer scan']):
         intent["action"] = "scan"
         
-        if any(w in msg_lower for w in ['evasion', 'ids', 'ips', 'firewall', 'sigiloso', 'stealth', 'oculto', 'sin detected', 'indetectable']):
+        if any(w in msg_lower for w in ['evasion', 'ids', 'ips', 'firewall', 'sigiloso', 'stealth', 'oculto', 'sin detected', 'indetectable', 'evadir']):
             intent["tool"] = "stealth"
-        elif any(w in msg_lower for w in ['vuln', 'vulnerab', 'exploit', 'cve', 'vulnerabilidad']):
+        elif any(w in msg_lower for w in ['vuln', 'vulnerab', 'exploit', 'cve', 'vulnerabilidad', 'security']):
             intent["tool"] = "vuln"
-        elif any(w in msg_lower for w in ['web', 'http', 'sitio', 'pagina', 'app', 'webapp']):
+        elif any(w in msg_lower for w in ['web', 'http', 'sitio', 'pagina', 'app', 'webapp', 'aplicación', 'dominio']):
             intent["tool"] = "web"
-        elif any(w in msg_lower for w in ['directorio', 'dir', 'carpeta', 'content', 'ruta']):
+        elif any(w in msg_lower for w in ['directorio', 'dir', 'carpeta', 'content', 'ruta', 'enumerar']):
             intent["tool"] = "dir"
-        elif any(w in msg_lower for w in ['completo', 'full', 'todo', 'profundo', 'all', 'exhaustivo']):
+        elif any(w in msg_lower for w in ['completo', 'full', 'todo', 'profundo', 'all', 'exhaustivo', 'extensivo']):
             intent["tool"] = "full"
-        elif any(w in msg_lower for w in ['rápido', 'quick', 'basic', 'simple', 'veloz']):
+        elif any(w in msg_lower for w in ['rápido', 'quick', 'basic', 'simple', 'veloz', 'ligero']):
             intent["tool"] = "quick"
-        elif any(w in msg_lower for w in ['puerto', 'port', 'puertos especificos']):
+        elif any(w in msg_lower for w in ['puerto', 'port', 'puertos especificos', 'puertos']):
             intent["tool"] = "custom"
-        elif any(w in msg_lower for w in ['os', 'sistema operativo', 'detectar so']):
+        elif any(w in msg_lower for w in ['os', 'sistema operativo', 'detectar so', 'operating system']):
             intent["tool"] = "os"
+        elif any(w in msg_lower for w in ['sql', 'inyección', 'injection']):
+            intent["tool"] = "sqlmap"
+        elif any(w in msg_lower for w in ['dns', 'subdomain', 'subdominio', 'dnsenum']):
+            intent["tool"] = "dns"
         else:
             intent["tool"] = "quick"
     
-    elif any(w in msg_lower for w in ['busca', 'search', 'exploit', 'cve', 'busca exploit', 'busca vulnerable']):
+    elif any(w in msg_lower for w in ['busca', 'search', 'exploit', 'cve', 'busca exploit', 'busca vulnerable', 'buscar', 'searchsploit']):
         intent["action"] = "search"
         if intent["target"]:
             intent["params"]["keyword"] = intent["target"]
         else:
-            keywords = ['apache', 'nginx', 'wordpress', 'mysql', 'ssh', 'ftp', 'smb', 'redis', 'postgres', 'windows', 'linux']
+            keywords = ['apache', 'nginx', 'wordpress', 'mysql', 'ssh', 'ftp', 'smb', 'redis', 'postgres', 'windows', 'linux', 'elasticsearch', 'mongodb', 'docker', 'kubernetes', 'jupyter', 'grafana']
             for kw in keywords:
                 if kw in msg_lower:
                     intent["params"]["keyword"] = kw
                     break
     
-    elif any(w in msg_lower for w in ['automático', 'autopwn', 'todo junto', 'pentest completo', 'full audit', 'todo automatico']):
+    elif any(w in msg_lower for w in ['automático', 'autopwn', 'todo junto', 'pentest completo', 'full audit', 'todo automatico', 'fullpentest', 'todo']):
         intent["action"] = "autopwn"
     
-    elif any(w in msg_lower for w in ['ejecuta', 'run', 'corre', 'ejecutar', 'haz']):
+    elif any(w in msg_lower for w in ['ejecuta', 'run', 'corre', 'ejecutar', 'haz', 'ejecutame', 'corre esto']):
         intent["action"] = "execute"
     
-    elif any(w in msg_lower for w in ['genera', 'crea', 'make', 'build', 'script', 'código', 'payload', 'shell']):
+    elif any(w in msg_lower for w in ['genera', 'crea', 'make', 'build', 'script', 'código', 'payload', 'shell', 'dame', 'necesito']):
         intent["action"] = "generate"
-        if any(w in msg_lower for w in ['reverse', 'backdoor', 'bind']):
+        if any(w in msg_lower for w in ['reverse', 'backdoor', 'bind', 'shell']):
             intent["params"]["type"] = "shell"
-        elif any(w in msg_lower for w in ['exploit', 'poc']):
+        elif any(w in msg_lower for w in ['exploit', 'poc', 'prueba']):
             intent["params"]["type"] = "exploit"
-        elif any(w in msg_lower for w in ['tool', 'herramienta', 'automation']):
+        elif any(w in msg_lower for w in ['tool', 'herramienta', 'automation', 'automatizacion']):
             intent["params"]["type"] = "tool"
+        elif any(w in msg_lower for w in ['python', 'bash', 'powershell', 'script']):
+            intent["params"]["type"] = "script"
+        elif any(w in msg_lower for w in ['payload', 'metasploit', 'msfvenom']):
+            intent["params"]["type"] = "payload"
         else:
             intent["params"]["type"] = "script"
     
-    elif any(w in msg_lower for w in ['reporte', 'report', 'documenta', 'informe']):
+    elif any(w in msg_lower for w in ['reporte', 'report', 'documenta', 'informe', 'documento', 'genera informe']):
         intent["action"] = "report"
     
-    elif any(w in msg_lower for w in ['archivos', 'files', 'scripts', 'generados', 'lista']):
+    elif any(w in msg_lower for w in ['archivos', 'files', 'scripts', 'generados', 'lista', 'listar', 'mostrar']):
         intent["action"] = "list_files"
     
-    elif any(w in msg_lower for w in ['analiza', 'analisis', 'analyze', 'resultados']):
+    elif any(w in msg_lower for w in ['analiza', 'analisis', 'analyze', 'resultados', 'que encontraste', 'interpretar']):
         intent["action"] = "analyze"
     
-    elif any(w in msg_lower for w in ['fuerza bruta', 'brute', 'password', 'credencial']):
+    elif any(w in msg_lower for w in ['fuerza bruta', 'brute', 'password', 'credencial', 'hydra', 'crack']):
         intent["action"] = "bruteforce"
     
+    elif any(w in msg_lower for w in ['subdomain', 'subdominio', 'subdomainenum', 'amass', 'subfinder']):
+        intent["action"] = "subdomain"
+    
+    elif any(w in msg_lower for w in ['dns', 'dnsenum', 'zona', 'registros']):
+        intent["action"] = "dns"
+    
+    elif any(w in msg_lower for w in ['whois', 'registro', 'dueño', 'propietario']):
+        intent["action"] = "whois"
+    
+    elif any(w in msg_lower for w in ['shodan', 'dispositivos', 'camaras', 'iot']):
+        intent["action"] = "shodan"
+    
+    elif any(w in msg_lower for w in ['virustotal', 'virus', 'malware', 'reputation']):
+        intent["action"] = "virustotal"
+    
+    elif any(w in msg_lower for w in ['email', 'emails', 'hunter', 'buscar emails']):
+        intent["action"] = "hunter"
+    
+    elif any(w in msg_lower for w in ['certificado', 'ssl', 'tls', 'crt', 'certificados']):
+        intent["action"] = "crt"
+    
+    elif any(w in msg_lower for w in ['proceso', 'procesos', 'task', 'running']):
+        intent["action"] = "processes"
+    
+    elif any(w in msg_lower for w in ['red', 'network', 'ip', 'conexion', 'interfaces']):
+        intent["action"] = "network"
+    
+    elif any(w in msg_lower for w in ['sistema', 'info', 'specs', 'hardware', 'maquina']):
+        intent["action"] = "system"
+    
+    elif any(w in msg_lower for w in ['servicio', 'servicios', 'service', 'windows service']):
+        intent["action"] = "services"
+    
+    elif any(w in msg_lower for w in ['disco', 'disk', 'espacio', 'storage', 'almacenamiento']):
+        intent["action"] = "disk"
+    
+    elif any(w in msg_lower for w in ['ayuda', 'help', 'comandos', 'commands', 'que puedes hacer']):
+        intent["action"] = "help"
+    
     return intent
-
-
-def _run_with_spinner(label: str, func, *args):
-    """Ejecuta func(*args) en un hilo mientras muestra un spinner animado."""
-    import threading
-    from rich.live import Live
-    from rich.spinner import Spinner as RSpinner
-
-    result_holder = [None]
-    def _worker():
-        result_holder[0] = func(*args)
-
-    t = threading.Thread(target=_worker, daemon=True)
-    t.start()
-    with Live(RSpinner("dots", text=f" [#FFD93D]{label}[/]"), console=console, refresh_per_second=12, transient=True):
-        t.join()
-    return result_holder[0]
 
 
 def auto_execute(intent: Dict) -> Optional[str]:
@@ -281,7 +396,7 @@ def auto_execute(intent: Dict) -> Optional[str]:
     if action == "scan" and target:
         if tool == "vuln":
             console.print(f"[#FFD93D]🔍 Escaneo de vulnerabilidades en {target}...[/]")
-            result = _run_with_spinner(f"Vuln scan en {target}...", vuln_scan, target)
+            result = vuln_scan(target)
             if result["success"]:
                 console.print(Panel(result["output"][:3000], title=f"Vuln Scan - {target}", border_style="#FF4757"))
                 return "Escaneo completado. ¿Analizo los resultados?"
@@ -302,8 +417,8 @@ def auto_execute(intent: Dict) -> Optional[str]:
             return "Escaneo de directorios completado."
         
         elif tool == "full":
-            console.print(f"[#FFD93D]🔍 Escaneo completo en {target} (puede tardar minutos)...[/]")
-            result = _run_with_spinner(f"Full scan en {target}...", full_scan, target)
+            console.print(f"[#FFD93D]🔍 Escaneo completo en {target}...[/]")
+            result = full_scan(target)
             if result["success"]:
                 console.print(Panel(result["output"][:3000], title=f"Full Scan - {target}", border_style="#00FF88"))
             return "Escaneo completo terminado."
@@ -324,7 +439,7 @@ def auto_execute(intent: Dict) -> Optional[str]:
         
         elif tool == "os":
             console.print(f"[#FFD93D]🔍 Deteccion de SO en {target}...[/]")
-            result = _run_with_spinner(f"OS detect en {target}...", os_detect, target)
+            result = os_detect(target)
             if result["success"]:
                 console.print(Panel(result["output"][:3000], title=f"OS Detect - {target}", border_style="#00FF88"))
             else:
@@ -395,7 +510,10 @@ def auto_execute(intent: Dict) -> Optional[str]:
     
     elif action == "generate":
         console.print("[#FFD93D]⚡ Generando código...[/]")
-        return "Entendido. Describe qué tipo de código necesitas (reverse shell, script, exploit, herramienta) y lo generaré automáticamente."
+        params = intent.get("params", {})
+        code_type = params.get("type", "script")
+        code_prompt = f"Genera {code_type} para: {target or params.get('keyword', '')}"
+        return f"generate_code|{code_prompt}"
     
     elif action == "report":
         if target:
@@ -431,43 +549,116 @@ def auto_execute(intent: Dict) -> Optional[str]:
 
 
 def show_help():
-    help_text = f"""
-[bold #FF6B35]╔══════════════════════════════════════════════════════════╗[/]
-[bold #FF6B35]║         PTAI - Detección Automática de Intenciones       ║[/]
-[bold #FF6B35]╚══════════════════════════════════════════════════════════╝
+    help_text = """
+[bold #00FF88]╔══════════════════════════════════════════════════════════════════════╗[/]
+[bold #00FF88]║                    PTAI - PENTESTING AI TOOL                         ║[/]
+[bold #00FF88]║                  Powered by Ollama + Local AI Models                ║[/]
+[bold #00FF88]╚══════════════════════════════════════════════════════════════════════╝[/]
 
-[#00FF88]La IA detecta automáticamente lo que necesitas:[/]
+[#FFD93D]┌─────────────────────────────────────────────────────────────────────────────┐[/]
+[#FFD93D]│                              ESCANEOS                                      │[/]
+[#FFD93D]└─────────────────────────────────────────────────────────────────────────────┘[/]
+  [cyan]/scan <target>[/]       → Escaneo rápido nmap
+  [cyan]/full <target>[/]      → Escaneo completo de puertos
+  [cyan]/vuln <target>[/]      → Detección de vulnerabilidades
+  [cyan]/web <target>[/]       → Análisis web (Nikto, WhatWeb)
+  [cyan]/dir <target>[/]       → Enumeración de directorios
+  [cyan]/stealth <target>[/]   → Escaneo con evasión de IDS
+  [cyan]/os <target>[/]        → Detección de sistema operativo
 
-[#FFD93D]ESCANEOS:[/]
-  • "escanea 192.168.1.1"           → Nmap rápido
-  • "escaneo completo de google.com" → Full scan
-  • "busca vulnerabilidades en X"    → Vuln scan
-  • "analiza puertos 22,80,443 X"   → Puertos específicos
-  • "escaneo web de miweb.com"      → Nikto + WhatWeb
-  • "busca directorios en X"        → Dir scan
+[#FFD93D]┌─────────────────────────────────────────────────────────────────────────────┐[/]
+[#FFD93D]│                           ENUMERACIÓN                                      │[/]
+[#FFD93D]└─────────────────────────────────────────────────────────────────────────────┘[/]
+  [cyan]/enum <target>[/]       → Enumeración completa
+  [cyan]/dns <domain>[/]        → Enumeración de registros DNS
+  [cyan]/subdomain <domain>[/] → Descubrimiento de subdominios
+  [cyan]/autopwn <target>[/]   → Pentest automático
+  [cyan]/fullpentest <target>[/] → Pentest completo (8 fases)
 
-[#FFD93D]BÚSQUEDA:[/]
-  • "busca exploits de apache"      → SearchSploit
-  • "busca cve de nginx"            → Busca CVEs
-  • "exploits para mysql"            → Exploit-DB
+[#FFD93D]┌─────────────────────────────────────────────────────────────────────────────┐[/]
+[#FFD93D]│                        GENERACIÓN DE CÓDIGO                               │[/]
+[#FFD93D]└─────────────────────────────────────────────────────────────────────────────┘[/]
+  [cyan]/code <desc>[/]        → Generar código/script
+  [cyan]/shell <tipo>[/]       → Generar reverse/bind shell
+  [cyan]/payload <tipo>[/]     → Generar payload
+  [cyan]/script <desc>[/]      → Crear script de automatización
 
-[#FFD93D]GENERACIÓN:[/]
-  • "genera reverse shell python"   → Crea payload
-  • "crea script de enumeración"     → Script automation
-  • "make bind shell bash"          → Shell payload
+[#FFD93D]┌─────────────────────────────────────────────────────────────────────────────┐[/]
+[#FFD93D]│                            APIS DE INTELIGENCIA                            │[/]
+[#FFD93D]└─────────────────────────────────────────────────────────────────────────────┘[/]
+  [cyan]/shodan <IP>[/]        → Shodan lookup
+  [cyan]/virus <domain>[/]     → VirusTotal scan
+  [cyan]/hunter <domain>[/]    → Hunter (buscar emails)
+  [cyan]/crt <domain>[/]       → Certificados SSL (CRT.SH)
+  [cyan]/whois <domain>[/]    → Whois lookup
 
-[#FFD93D]AUTOMÁTICO:[/]
-  • "pentest completo a X"          → Todo automático
-  • "autopwn 192.168.1.1"           → Auto-explotación
+[#FFD93D]┌─────────────────────────────────────────────────────────────────────────────┐[/]
+[#FFD93D]│                         COMPLIANCE & AUDITORÍA                             │[/]
+[#FFD93D]└─────────────────────────────────────────────────────────────────────────────┘[/]
+  [cyan]/compliance <tipo>[/]  → Verificar compliance (cis, owasp, pci, nist)
+  [cyan]/audit <target>[/]     → Auditoría de seguridad
+  [cyan]/headers <domain>[/]  → Verificar security headers
 
-[#FFD93D]REPORTES:[/]
-  • "genera reporte de X"           → Crea informe
-  • "documenta el escaneo"          → Reporte Markdown
+[#FFD93D]┌─────────────────────────────────────────────────────────────────────────────┐[/]
+[#FFD93D]│                         THREAT INTELLIGENCE                                │[/]
+[#FFD93D]└─────────────────────────────────────────────────────────────────────────────┘[/]
+  [cyan]/ioc <texto>[/]        → Extraer IOCs de texto
+  [cyan]/threat <tipo>[/]      → Clasificar amenazas
+  [cyan]/reputation <IP>[/]   → Verificar reputación de IP
+  [cyan]/hashcheck <hash>[/]  → Analizar hash malicioso
 
-[#FF6B35]COMANDOS:[/]
-  /help, /files, /models, /clear, /exit
+[#FFD93D]┌─────────────────────────────────────────────────────────────────────────────┐[/]
+[#FFD93D]│                         INCIDENT RESPONSE                                  │[/]
+[#FFD93D]└─────────────────────────────────────────────────────────────────────────────┘[/]
+  [cyan]/incident <tipo>[/]   → Iniciar respuesta a incidente
+  [cyan]/ir-steps <tipo>[/]   → Ver pasos de respuesta
+  [cyan]/escalate <severidad>[/] → Escalar incidente
 
-[#A0A0A0]Salida:[/] {get_output_dir()}
+[#FFD93D]┌─────────────────────────────────────────────────────────────────────────────┐[/]
+[#FFD93D]│                            CVE & VULNERABILITIES                          │[/]
+[#FFD93D]└─────────────────────────────────────────────────────────────────────────────┘[/]
+  [cyan]/cve <ID>[/]           → Buscar CVE específico
+  [cyan]/cve <keyword>[/]      → Buscar CVEs por palabra clave
+  [cyan]/cveupdate[/]         → Actualizar base de datos CVE
+  [cyan]/recent[/]            → Últimos exploits (30 días)
+  [cyan]/vuln-db[/]           → Base de datos de vulnerabilidades
+
+[#FFD93D]┌─────────────────────────────────────────────────────────────────────────────┐[/]
+[#FFD93D]│                              SISTEMA                                      │[/]
+[#FFD93D]└─────────────────────────────────────────────────────────────────────────────┘[/]
+  [cyan]/run <cmd>[/]          → Ejecutar comando directo
+  [cyan]/exec <tool> <args>[/] → Ejecutar herramienta
+  [cyan]/tools[/]             → Listar herramientas disponibles
+  [cyan]/search <term>[/]     → Buscar exploits (Exploit-DB)
+  [cyan]/report <target>[/]   → Generar reporte
+  [cyan]/reporthtml <target>[/] → Reporte HTML
+
+[#FFD93D]┌─────────────────────────────────────────────────────────────────────────────┐[/]
+[#FFD93D]│                            SESIONES & HISTORIAL                           │[/]
+[#FFD93D]└─────────────────────────────────────────────────────────────────────────────┘[/]
+  [cyan]/session [name][/]     → Crear/listar sesiones
+  [cyan]/resume <name>[/]     → Reanudar sesión
+  [cyan]/history[/]           → Ver historial de chat
+  [cyan]/clearhistory[/]      → Borrar historial
+  [cyan]/files[/]            → Archivos generados
+
+[#FFD93D]┌─────────────────────────────────────────────────────────────────────────────┐[/]
+[#FFD93D]│                              MODOS DE TRABAJO                             │[/]
+[#FFD93D]└─────────────────────────────────────────────────────────────────────────────┘[/]
+  [cyan]/mode <nombre>[/]     → Cambiar modo de trabajo
+  [cyan]/modes[/]             → Listar modos disponibles
+  [cyan]/models[/]           → Listar modelos disponibles
+  [cyan]/backend <nombre>[/]  → Cambiar backend (ollama/lmstudio/llamacpp)
+
+[#FFD93D]┌─────────────────────────────────────────────────────────────────────────────┐[/]
+[#FFD93D]│                              OTROS                                        │[/]
+[#FFD93D]└─────────────────────────────────────────────────────────────────────────────┘[/]
+  [cyan]/help[/]              → Este menú
+  [cyan]/clear[/]             → Limpiar pantalla
+  [cyan]/exit[/]              → Salir
+
+[A0A0A0]Salida por defecto:[/] {get_output_dir()}
+[A0A0A0]Comandos soportados:[/] Escribe naturalmente, la IA detecta tu intención
 """
     console.print(help_text)
 
@@ -516,6 +707,28 @@ def process_command(user_input: str) -> Optional[str]:
         global current_model
         current_model = args if args else current_model
         return f"Modelo: {current_model}"
+    elif cmd == "/backend":
+        if args:
+            backends = MultiBackendClient.get_available_backends()
+            if args.lower() in backends:
+                global ollama
+                os.environ["DEFAULT_BACKEND"] = args.lower()
+                ollama = get_client(args.lower())
+                console.print(f"[green]✓ Backend cambiado a: {args.lower()}[/]")
+                if ollama.check_connection():
+                    console.print(f"[green]✓ Conexión exitosa[/]")
+                else:
+                    console.print(f"[red]✗ No se pudo conectar al backend[/]")
+                return None
+            else:
+                console.print(f"[yellow]Backends disponibles: {', '.join(backends)}[/]")
+                return None
+        else:
+            current = os.getenv("DEFAULT_BACKEND", "ollama")
+            backends = MultiBackendClient.get_available_backends()
+            console.print(f"[bold]Backend actual:[/] {current}")
+            console.print(f"[bold]Backends disponibles:[/] {', '.join(backends)}")
+            return "Usa /backend <nombre> para cambiar"
     elif cmd == "/files":
         files = list_files("all")
         for cat, file_list in files.items():
@@ -526,21 +739,6 @@ def process_command(user_input: str) -> Optional[str]:
         return None
     elif cmd == "/output":
         return get_output_dir()
-    elif cmd == "/status":
-        current = get_current_mode()
-        mode_info = get_mode_info(current)
-        available_tools = get_available_tools()
-        tool_count = sum(len(v) for v in available_tools.values())
-        table = Table(title="[bold #FF6B35]RETRO-OLLAMA Status[/]", box=box.ROUNDED)
-        table.add_column("Campo", style="#FFD93D", no_wrap=True)
-        table.add_column("Valor", style="#00FF88")
-        table.add_row("Modelo activo", current_model or "[yellow]No seleccionado[/]")
-        table.add_row("Modo", f"{mode_info['icon']} {mode_info['name']}")
-        table.add_row("Mensajes en historial", str(len(chat_history)))
-        table.add_row("Herramientas disponibles", str(tool_count) if tool_count else "[red]Ninguna[/]")
-        table.add_row("Salida", get_output_dir())
-        console.print(table)
-        return None
     elif cmd == "/clear":
         console.clear()
         print_banner()
@@ -636,10 +834,6 @@ def process_command(user_input: str) -> Optional[str]:
     
     elif cmd == "/run":
         if args:
-            is_valid, error_msg = validate_command(args)
-            if not is_valid:
-                console.print(f"[red]⚠️ Comando bloqueado: {error_msg}[/]")
-                return "Comando no permitido."
             console.print(f"[#FFD93D]⚡ Ejecutando: {args}[/]")
             result = execute_command(args)
             if result["output"]:
@@ -844,6 +1038,372 @@ def process_command(user_input: str) -> Optional[str]:
             console.print("[yellow]Uso: /reporthtml <target>[/]")
         return None
     
+    elif cmd == "/compliance":
+        if args:
+            framework = args.lower()
+            if framework not in ["cis", "owasp", "pci", "nist"]:
+                console.print("[yellow]Framework válido: cis, owasp, pci, nist[/]")
+                return None
+            from src.tools.compliance import COMPLIANCE_CHECKS
+            console.print(f"[#FFD93D]Verificando compliance {framework.upper()}...[/]")
+            framework_data = COMPLIANCE_CHECKS.get(framework, {})
+            if framework == "cis":
+                checks = framework_data.get("linux", []) + framework_data.get("windows", [])
+            else:
+                checks = framework_data.get("requirements", []) or framework_data.get("controls", []) or framework_data.get("headers", []) or []
+            for check in checks[:15]:
+                console.print(f"  [{check.get('severity', '?')[:3].upper():3}] {check.get('id', '')} - {check.get('title', '')[:50]}")
+            console.print(f"[#00FF88]✓ Total checks: {len(checks)}[/]")
+        else:
+            console.print("[yellow]Uso: /compliance <cis|owasp|pci|nist>[/]")
+            console.print("[cyan]Marcos de compliance disponibles:[/]")
+            console.print("  cis   - CIS Benchmarks")
+            console.print("  owasp - OWASP Top 10")
+            console.print("  pci   - PCI-DSS")
+            console.print("  nist  - NIST Framework")
+        return None
+    
+    elif cmd == "/ioc":
+        if args:
+            ti = ThreatIntelligence()
+            iocs = ti.extract_iocs(args)
+            console.print(f"[#FF6B35]IOCs extraídos:[/]")
+            for ioc_type, values in iocs.items():
+                if values:
+                    console.print(f"  [{ioc_type.upper()}] {', '.join(values[:5])}")
+        else:
+            console.print("[yellow]Uso: /ioc <texto>[/]")
+            console.print("[cyan]Ejemplo: /ioc 192.168.1.1 malicious.com virus@malware.com[/]")
+        return None
+    
+    elif cmd == "/threat":
+        if args:
+            ti = ThreatIntelligence()
+            classification = ti.classify_threat(args)
+            if classification:
+                c = classification[0] if isinstance(classification, list) else classification
+                console.print(Panel(f"[bold]Tipo:[/] {c.get('type', 'unknown')}\n[bold]Categoría:[/] {c.get('category', 'N/A')}\n[bold]Severidad:[/] {c.get('severity', 'N/A')}", title=f"Clasificación: {args}", border_style="#FF6B35"))
+            else:
+                console.print("[yellow]No se pudo clasificar[/]")
+        else:
+            console.print("[yellow]Uso: /threat <tipo>[/]")
+            console.print("[cyan]Tipos: malware, phishing, ransomware, brute_force, etc.[/]")
+        return None
+    
+    elif cmd == "/incident":
+        if args:
+            ir = IncidentResponse()
+            incident = ir.create_incident(f"Incident: {args}", args, f"Incident created via CLI")
+            console.print(Panel(f"[bold]ID:[/] {incident.id}\n[bold]Tipo:[/] {incident.incident_type}\n[bold]Severidad:[/] {incident.severity}", title="Nuevo Incidente", border_style="#FF4757"))
+            steps = ir.get_response_steps(args)
+            console.print(f"[#FFD93D]Pasos de respuesta ({len(steps)}):[/]")
+            for i, step in enumerate(steps, 1):
+                console.print(f"  {i}. {step}")
+        else:
+            console.print("[yellow]Uso: /incident <tipo>[/]")
+            console.print("[cyan]Tipos de incidente:[/]")
+            console.print("  malware_infection, data_breach, phishing_attack")
+            console.print("  ransomware, unauthorized_access, ddos_attack, insider_threat")
+        return None
+    
+    elif cmd == "/ir-steps":
+        if args:
+            ir = IncidentResponse()
+            steps = ir.get_response_steps(args)
+            console.print(f"[#FF6B35]Pasos de respuesta para {args}:[/]")
+            for i, step in enumerate(steps, 1):
+                console.print(f"  {i}. {step}")
+        else:
+            console.print("[yellow]Uso: /ir-steps <tipo_incidente>[/]")
+        return None
+    
+    elif cmd == "/headers":
+        if args:
+            try:
+                import requests
+                console.print(f"[#FFD93D]Verificando headers en {args}...[/]")
+                if not args.startswith("http"):
+                    args = "https://" + args
+                resp = requests.head(args, timeout=10)
+                headers = dict(resp.headers)
+                checker = ComplianceChecker("owasp")
+                results = checker.check_web_headers(headers)
+                for r in results:
+                    status = r.get("status", "unknown")
+                    icon = "[#00FF88]✓[/]" if status == "pass" else "[#FF4757]✗[/]" if status == "fail" else "[#FFD93D]?[/]"
+                    console.print(f"  {icon} {r.get('title', 'N/A')[:50]}")
+            except Exception as e:
+                console.print(f"[red]Error: {str(e)}[/]")
+        else:
+            console.print("[yellow]Uso: /headers <domain>[/]")
+        return None
+    
+    elif cmd == "/vuln-db":
+        from src.tools.vuln_db import VULNERABILITY_DATABASE
+        console.print(f"[#FF6B35]Vulnerability Database ({len(VULNERABILITY_DATABASE)} entries):[/]")
+        for cve_id, vuln in list(VULNERABILITY_DATABASE.items())[:20]:
+            console.print(f"  [{vuln.get('severity', '?')[:3].upper():3}] {cve_id}: {vuln.get('name', 'N/A')} (CVSS: {vuln.get('cvss', 0)})")
+        console.print(f"\n[yellow]Total: {len(VULNERABILITY_DATABASE)} vulnerabilidades[/]")
+        return None
+    
+    elif cmd == "/escalate":
+        if args:
+            ir = IncidentResponse()
+            sev = args.lower()
+            contact = ir.get_severity_info(sev)
+            console.print(f"[#FF4757]Escalando a severidad: {sev}[/]")
+            console.print(f"[bold]Tiempo de respuesta:[/] {contact.get('response_time', 'N/A')}")
+            console.print(f"[bold]Escalar a:[/] {contact.get('escalation', 'N/A')}")
+        else:
+            console.print("[yellow]Uso: /escalate <critical|high|medium|low>[/]")
+        return None
+    
+    elif cmd == "/metrics":
+        from src.tools.metrics import SecurityMetrics
+        metrics = SecurityMetrics()
+        metrics.record_scan("cli")
+        metrics.record_finding("high")
+        console.print("[#FF6B35]Security Metrics:[/]")
+        console.print("  Total scans: 1")
+        console.print("  Findings: high=1, medium=0, low=0")
+        console.print(f"  Output: {get_output_dir()}")
+        return None
+    
+    elif cmd == "/ioc":
+        if args:
+            ti = ThreatIntelligence()
+            iocs = ti.extract_iocs(args)
+            console.print(f"[#FF6B35]IOCs extraídos:[/]")
+            for ioc_type, values in iocs.items():
+                if values:
+                    console.print(f"  [{ioc_type.upper()}] {', '.join(values[:5])}")
+        else:
+            console.print("[yellow]Uso: /ioc <texto>[/]")
+            console.print("[cyan]Ejemplo: /ioc 192.168.1.1 malicious.com virus@malware.com[/]")
+        return None
+    
+    elif cmd == "/threat":
+        if args:
+            ti = ThreatIntelligence()
+            classification = ti.classify_threat(args)
+            if classification:
+                c = classification[0] if isinstance(classification, list) else classification
+                console.print(Panel(f"[bold]Tipo:[/] {c.get('type', 'unknown')}\n[bold]Categoría:[/] {c.get('category', 'N/A')}\n[bold]Severidad:[/] {c.get('severity', 'N/A')}", title=f"Clasificación: {args}", border_style="#FF6B35"))
+            else:
+                console.print("[yellow]No se pudo clasificar[/]")
+        else:
+            console.print("[yellow]Uso: /threat <tipo>[/]")
+            console.print("[cyan]Tipos: malware, phishing, ransomware, brute_force, etc.[/]")
+        return None
+    
+    elif cmd == "/incident":
+        if args:
+            ir = IncidentResponse()
+            incident = ir.create_incident(f"Incident: {args}", args, f"Incident created via CLI")
+            console.print(Panel(f"[bold]ID:[/] {incident.id}\n[bold]Tipo:[/] {incident.incident_type}\n[bold]Severidad:[/] {incident.severity}", title="Nuevo Incidente", border_style="#FF4757"))
+            steps = ir.get_response_steps(args)
+            console.print(f"[#FFD93D]Pasos de respuesta ({len(steps)}):[/]")
+            for i, step in enumerate(steps, 1):
+                console.print(f"  {i}. {step}")
+        else:
+            console.print("[yellow]Uso: /incident <tipo>[/]")
+            console.print("[cyan]Tipos de incidente:[/]")
+            console.print("  malware_infection, data_breach, phishing_attack")
+            console.print("  ransomware, unauthorized_access, ddos_attack, insider_threat")
+        return None
+    
+    elif cmd == "/ir-steps":
+        if args:
+            ir = IncidentResponse()
+            steps = ir.get_response_steps(args)
+            console.print(f"[#FF6B35]Pasos de respuesta para {args}:[/]")
+            for i, step in enumerate(steps, 1):
+                console.print(f"  {i}. {step}")
+        else:
+            console.print("[yellow]Uso: /ir-steps <tipo_incidente>[/]")
+        return None
+    
+    elif cmd == "/headers":
+        if args:
+            try:
+                import requests
+                console.print(f"[#FFD93D]Verificando headers en {args}...[/]")
+                if not args.startswith("http"):
+                    args = "https://" + args
+                resp = requests.head(args, timeout=10)
+                headers = dict(resp.headers)
+                checker = ComplianceChecker("owasp")
+                results = checker.check_web_headers(headers)
+                for r in results:
+                    status = r.get("status", "unknown")
+                    icon = "[#00FF88]✓[/]" if status == "pass" else "[#FF4757]✗[/]" if status == "fail" else "[#FFD93D]?[/]"
+                    console.print(f"  {icon} {r.get('title', 'N/A')[:50]}")
+            except Exception as e:
+                console.print(f"[red]Error: {str(e)}[/]")
+        else:
+            console.print("[yellow]Uso: /headers <domain>[/]")
+        return None
+    
+    elif cmd == "/vuln-db":
+        from src.tools.vuln_db import VULNERABILITY_DATABASE
+        console.print(f"[#FF6B35]Vulnerability Database ({len(VULNERABILITY_DATABASE)} entries):[/]")
+        for cve_id, vuln in list(VULNERABILITY_DATABASE.items())[:20]:
+            console.print(f"  [{vuln.get('severity', '?')[:3].upper():3}] {cve_id}: {vuln.get('name', 'N/A')} (CVSS: {vuln.get('cvss', 0)})")
+        console.print(f"\n[yellow]Total: {len(VULNERABILITY_DATABASE)} vulnerabilidades[/]")
+        return None
+    
+    elif cmd == "/escalate":
+        if args:
+            ir = IncidentResponse()
+            sev = args.lower()
+            contact = ir.get_severity_info(sev)
+            console.print(f"[#FF4757]Escalando a severidad: {sev}[/]")
+            console.print(f"[bold]Tiempo de respuesta:[/] {contact.get('response_time', 'N/A')}")
+            console.print(f"[bold]Escalar a:[/] {contact.get('escalation', 'N/A')}")
+        else:
+            console.print("[yellow]Uso: /escalate <critical|high|medium|low>[/]")
+        return None
+    
+    elif cmd == "/metrics":
+        from src.tools.metrics import SecurityMetrics
+        metrics = SecurityMetrics()
+        metrics.record_scan("test")
+        metrics.record_finding("high")
+        console.print("[#FF6B35]Security Metrics Dashboard:[/]")
+        console.print("  Scans: 1")
+        console.print("  Findings by severity: high=1, medium=0, low=0")
+        console.print(f"  Output: {get_output_dir()}")
+        return None
+    
+    elif cmd == "/agent":
+        from src.ai.agent import auto_agent
+        if args:
+            # Run agent with specific task
+            console.print(f"[#808080]Running agent task: {args}[/]")
+            result = auto_agent.process(args, ollama, current_model)
+            console.print(result)
+        else:
+            console.print("[#808080]Agent Commands:[/]")
+            console.print("  /agent <task> - Run autonomous agent task")
+            console.print("  /workflow <name> <target> - Run workflow")
+            console.print("  /status - Show agent status")
+            console.print("  /reset - Reset agent memory")
+            console.print("  /summary - Show activity summary")
+        return None
+    
+    elif cmd == "/workflow":
+        from src.ai.agent import auto_agent, AgentWorkflow
+        if args:
+            parts = args.split()
+            if len(parts) >= 2:
+                workflow_name = parts[0]
+                target = " ".join(parts[1:])
+                result = auto_agent.run_workflow(workflow_name, target, ollama, current_model)
+                console.print(result)
+            elif len(parts) == 1:
+                # List workflows
+                workflows = AgentWorkflow.list_workflows()
+                console.print("[#808080]Available workflows:[/]")
+                for wf in workflows:
+                    console.print(f"  - {wf}")
+            else:
+                console.print("[yellow]Usage: /workflow <name> <target>[/]")
+        else:
+            workflows = AgentWorkflow.list_workflows()
+            console.print("[#808080]Available workflows:[/]")
+            for wf in workflows:
+                console.print(f"  - {wf}")
+            console.print("[yellow]Usage: /workflow <name> <target>[/]")
+        return None
+    
+    elif cmd == "/status":
+        from src.ai.agent import auto_agent
+        status = auto_agent.get_status()
+        console.print(Panel(
+            f"""[#808080]AGENT STATUS[/]
+State: {status['state']}
+Targets scanned: {status['memory']['targets_scanned']}
+Vulnerabilities: {status['memory']['vulnerabilities_found']}
+Findings: {status['memory']['recent_findings']}
+
+[#808080]Available:[/]
+Workflows: {', '.join(status['available_workflows'][:3])}...
+Tools: {len(status['available_tools'])}""",
+            title="[#808080]Agent Status[/]",
+            border_style="#404040"
+        ))
+        return None
+    
+    elif cmd == "/reset":
+        from src.ai.agent import auto_agent
+        result = auto_agent.reset_memory()
+        console.print(f"[#808080]{result}[/]")
+        return None
+    
+    elif cmd == "/summary":
+        from src.ai.agent import auto_agent
+        summary = auto_agent.generate_summary()
+        console.print(Panel(summary, title="[#808080]Agent Summary[/]", border_style="#404040"))
+        return None
+    
+    elif cmd == "/skills":
+        from src.ai.skills import list_all_skills
+        skills = list_all_skills()
+        if args:
+            for s in skills:
+                if s['name'] == args or args in s['commands']:
+                    console.print(Panel(
+                        f"[#808080]Skill:[/] {s['name']}\n"
+                        f"[#808080]Description:[/] {s['description']}\n"
+                        f"[#808080]Category:[/] {s['category']}\n"
+                        f"[#808080]Commands:[/] {', '.join(s['commands'])}\n"
+                        f"[#808080]Tags:[/] {', '.join(s['tags'])}",
+                        title=f"[#808080]{s['name']}[/]", border_style="#404040"
+                    ))
+                    return None
+        console.print(Panel(
+            f"[#808080]Available Skills ({len(skills)}):[/]\n\n" + 
+            "\n".join([f"  {s['icon']} {s['name']:15} - {s['description'][:40]}" 
+                      for s in [{"icon": "📦", **s} for s in skills]]),
+            title="[#808080]Skills[/]", border_style="#404040"
+        ))
+        return None
+    
+    elif cmd == "/workflows":
+        from src.ai.workflows import list_all_workflows
+        workflows = list_all_workflows()
+        if args:
+            for wf in workflows:
+                if wf['name'] == args:
+                    steps = "\n".join([f"  {i+1}. {s['name']} ({s['tool']})" 
+                                      for i, s in enumerate(wf['steps'])])
+                    console.print(Panel(
+                        f"[#808080]Workflow:[/] {wf['name']}\n"
+                        f"[#808080]Description:[/] {wf['description']}\n"
+                        f"[#808080]Category:[/] {wf['category']}\n"
+                        f"[#808080]Steps:[/]\n{steps}",
+                        title=f"[#808080]{wf['name']}[/]", border_style="#404040"
+                    ))
+                    return None
+        console.print(Panel(
+            f"[#808080]Available Workflows ({len(workflows)}):[/]\n\n" + 
+            "\n".join([f"  {wf['name']:15} - {wf['description'][:50]}" 
+                      for wf in workflows]),
+            title="[#808080]Workflows[/]", border_style="#404040"
+        ))
+        return None
+    
+    elif cmd == "/findings":
+        from src.ai.agent import auto_agent
+        findings = auto_agent.memory.recent_findings
+        if findings:
+            console.print(f"[#808080]Recent Findings ({len(findings)}):[/]")
+            for i, f in enumerate(findings[-10:], 1):
+                console.print(f"  {i}. [{f.severity.upper()}] {f.title}")
+        else:
+            console.print("[yellow]No findings yet[/]")
+        return None
+    
     if cmd.startswith("/"):
         return f"Comando: {cmd}. Escribe /help"
     
@@ -898,7 +1458,7 @@ AUTO_FUNCTIONS = {
     ("wsl", "linux", "kali", "ubuntu", "ejecuta en", "corre en"): check_wsl_tools,
     ("wifi", "wireless", "redes wifi"): get_wifi_networks,
     ("wifi", "redes", "networks"): get_wifi_networks,
-    ("instalado", "tool", "nmap", "python", "git"): lambda t: check_tool(t or "nmap"),
+    ("instalado", "tool", "nmap", "python", "git"): lambda t="nmap": check_tool(t or "nmap"),
 }
 
 
@@ -1211,6 +1771,60 @@ codigo
     intent = detect_intent(message)
     auto_result = auto_execute(intent)
     if auto_result:
+        if auto_result.startswith("generate_code|"):
+            prompt = auto_result.split("|")[1]
+            console.print(f"[#FFD93D]⚡ Generando: {prompt}...[/]")
+            
+            use_model: str = model
+            restricted_terms = ['keylog', 'malware', 'ransomware', 'trojan', 'virus', 'backdoor', 'spyware']
+            if any(term in prompt.lower() for term in restricted_terms):
+                available = ollama.list_models()
+                for m in available:
+                    name = m.get('name') or ''
+                    if 'dolphin' in name.lower() or 'mixtral' in name.lower():
+                        use_model = name
+                        console.print(f"[#FFD93D]⚡ Usando modelo: {use_model}[/]")
+                        break
+            
+            code_prompt = f"""SOLO CODIGO. NADA DE EXPLICACIONES.
+
+Genera SOLO el codigo. Sin texto antes o despues.
+Solo el bloque de codigo entre etiquetas.
+
+Lenguaje: detecta el mejor para lo solicitado
+Formato: ```lenguaje
+codigo
+```"""
+
+            messages = [
+                {"role": "system", "content": code_prompt},
+                {"role": "user", "content": f"{prompt}\n\nDa SOLO el codigo. Sin explicaciones. Sin warnigs. Solo codigo."}
+            ]
+            
+            import time
+            start_time = time.time()
+            response = []
+            
+            console.print("[#FFD93D]⚡ Generando código...[/]")
+            
+            try:
+                for chunk in ollama.chat(use_model, messages):
+                    response.append(chunk)
+                    print(chunk, end="", flush=True)
+            except Exception as e:
+                console.print(f"[#FF4757]Error en generación: {str(e)}[/]")
+                return f"Error: {str(e)}"
+            
+            elapsed = int(time.time() - start_time)
+            full_response = "".join(response)
+            char_count = len(full_response)
+            
+            console.print(f"\n[#00FF88]✓ Completado en {elapsed}s [{char_count} chars][/]")
+            
+            if full_response.strip():
+                console.print(Panel(full_response[:5000], title="Código generado", border_style="#00FF88"))
+            
+            return None
         return auto_result
     
     current_mode = get_current_mode()
@@ -1245,65 +1859,60 @@ Funciones adicionales:
     ]
     
     import time
-    from rich.live import Live
-    from rich.spinner import Spinner as RSpinner
-    from rich.text import Text
-
     start_time = time.time()
     response = []
-
-    # --- Spinner animado mientras la IA genera ---
-    spinner_text = Text()
-    with Live(RSpinner("dots", text=" [#FFD93D]Pensando...[/]"), console=console, refresh_per_second=12, transient=True):
-        for chunk in ollama.chat(model, messages):
-            response.append(chunk)
-
+    
+    console.print("[#FFD93D]⚡ Procesando...[/]")
+    
+    for chunk in ollama.chat(model, messages):
+        response.append(chunk)
+        print(chunk, end="", flush=True)
+    
     full_response = "".join(response)
-
-    # Mostrar respuesta en Panel limpio
-    if full_response.strip():
-        console.print(Panel(full_response.strip(), title="[bold #FF6B35]🤖 RETRO-OLLAMA[/]", border_style="#FF6B35", padding=(0, 1)))
-
+    
     clean_response, func_results = execute_function_call(full_response)
-
+    
     if func_results:
         console.print(Panel("\n".join(func_results), title="[green]Resultados de funciones ejecutadas[/]", border_style="#00FF88"))
         messages.append({"role": "assistant", "content": clean_response})
         messages.append({"role": "user", "content": f"Resultados de las funciones: {func_results}"})
-
+        
         response = []
-        with Live(RSpinner("dots", text=" [#FFD93D]Procesando resultados...[/]"), console=console, refresh_per_second=12, transient=True):
-            for chunk in ollama.chat(model, messages):
-                response.append(chunk)
-
+        console.print("[#FFD93D]⚡ Procesando resultados...[/]")
+        
+        for chunk in ollama.chat(model, messages):
+            response.append(chunk)
+            print(chunk, end="", flush=True)
+        
         full_response = "".join(response)
-        if full_response.strip():
-            console.print(Panel(full_response.strip(), title="[bold #FF6B35]🤖 RETRO-OLLAMA[/]", border_style="#FF6B35", padding=(0, 1)))
-
+    
     elapsed = int(time.time() - start_time)
     char_count = len(full_response)
-    console.print(f"[#00FF88]✓ {elapsed}s · {char_count} chars[/]")
-
+    console.print(f"[#00FF88]✓ Completado en {elapsed}s ({char_count} chars)[/]")
+    print()
+    
     chat_history.append({"role": "user", "content": message})
     chat_history.append({"role": "assistant", "content": full_response})
-
-    # --- Mejora 2: trim de historial — mantener máximo 60 mensajes ---
-    if len(chat_history) > 60:
-        chat_history[:] = chat_history[-60:]
-
+    
     save_history(chat_history)
-
+    
     return full_response
 
 
 COMMANDS = [
     "/help", "/mode", "/modes", "/models", "/setmodel", "/files", "/output", "/clear", "/exit",
-    "/status", "/code", "/shell", "/payload", "/scan", "/vuln", "/web", "/dir", "/full",
+    "/code", "/shell", "/payload", "/script", "/scan", "/vuln", "/web", "/dir", "/full",
     "/stealth", "/os", "/autopwn", "/fullpentest", "/enum", "/dns", "/subdomain",
     "/run", "/search", "/report", "/reporthtml", "/exec", "/tools", "/shodan", "/virus",
     "/hunter", "/crt", "/whois", "/history", "/clearhistory",
-    "/session", "/resume", "/cve", "/cveupdate", "/recent"
+    "/session", "/resume", "/cve", "/cveupdate", "/recent",
+    "/compliance", "/ioc", "/threat", "/incident", "/ir-steps", "/headers", "/vuln-db",
+    "/escalate", "/metrics", "/backend",
+    # Agent commands
+    "/agent", "/workflow", "/status", "/reset", "/findings", "/summary"
 ]
+
+AGENT_COMMANDS = ["/agent", "/workflow", "/status", "/reset", "/findings", "/summary"]
 
 def get_completions():
     return COMMANDS
@@ -1318,8 +1927,7 @@ def main(
 ):
     global current_model, ollama
     
-    if not nobanner:
-        print_banner()
+    # Banner is handled by main.py
     
     if host:
         ollama = OllamaClient(host)
@@ -1340,52 +1948,48 @@ def main(
     
     current_model = model if model else select_model()
     
+    print_status()
+    
     console.print(Panel(
-        f"[#00FF88]Modelo:[/] {current_model}\n"
-        f"[#A0A0A0]Salida:[/] {get_output_dir()}\n\n"
-        f"[#FFD93D]╔════════════════════════════════════════╗[/]\n"
-        f"[#FFD93D]║           COMANDOS RÁPIDOS            ║[/]\n"
-        f"[#FFD93D]╚════════════════════════════════════════╝[/]\n\n"
-        f"[#00FF88]Generación:[/]\n"
-        f"  /code <tipo>       - Generar codigo\n"
-        f"  /shell <tipo>      - Generar shells\n"
-        f"  /payload <tipo>    - Generar payloads\n\n"
-        f"[#00FF88]Escaneos:[/]\n"
-        f"  /scan <target>     - Escaneo rapido (nmap)\n"
-        f"  /vuln <target>    - Vulnerabilidades\n"
-        f"  /web <target>     - Escaneo web\n"
-        f"  /full <target>    - Escaneo completo\n"
-        f"  /stealth <target> - Escaneo evasion\n\n"
-        f"[#00FF88]Enumeracion:[/]\n"
-        f"  /enum <target>    - Enumeracion completa\n"
-        f"  /dns <target>    - Enumeracion DNS\n"
-        f"  /subdomain <target> - Subdominios\n\n"
-        f"[#00FF88]Pentest:[/]\n"
-        f"  /autopwn <target> - Pentest automatico\n"
-        f"  /fullpentest <target> - Pentest completo\n\n"
-        f"[#00FF88]APIs (configurar claves):[/]\n"
-        f"  /shodan <IP>      - Shodan lookup\n"
-        f"  /virus <domain>   - VirusTotal scan\n"
-        f"  /hunter <domain>  - Buscar emails\n"
-        f"  /crt <domain>     - Certificados SSL\n"
-        f"  /whois <domain>   - Whois lookup\n\n"
-        f"[#00FF88]Sistema:[/]\n"
-        f"  /run <cmd>        - Comando directo\n"
-        f"  /exec <tool> args - Ejecutar herramienta\n"
-        f"  /search <term>    - Buscar exploits\n"
-        f"  /tools            - Herramientas disponibles\n"
-        f"  /history          - Ver historial\n"
-        f"  /files            - Archivos generados",
-        title="PTAI - Pentesting AI Tool", border_style="#FF6B35"
+        f"""[#A0A0A0]>> SCANS                        >> GENERATION[/]
+   /scan <target>    Quick nmap      /code <desc>   Generate code
+   /vuln <target>    Vuln scan       /shell <type>  Generate shell
+   /web <target>     Web analysis    /payload <t>   Generate payload
+   /full <target>    Full scan       /script <desc> Create script
+   /stealth <target> Evasion scan
+
+[#A0A0A0]>> ENUMERATION              >> APIs & INTEL[/]
+   /enum <target>    Full enum     /shodan <IP>   Shodan lookup
+   /dns <domain>     DNS enum      /virus <dom>   VirusTotal scan
+   /subdomain <d>   Subdomains    /hunter <d>    Hunter emails
+   /autopwn <t>     Auto-pentest  /crt <domain>  SSL certificates
+
+   [#A0A0A0]>> SYSTEM                  >> ADVANCED[/]
+   /run <cmd>       Execute cmd   /compliance    Check compliance
+   /search <term>   Search exploit /ioc <text>    Extract IOCs
+   /tools           List tools    /incident      IR workflow
+   /report <target> Generate rep  /cve <id>      CVE lookup
+   /skills           List skills   /workflows     List workflows
+
+   [#808080]>> HELP: /help /modes /history /files /agent /status /skills /workflows /exit""",
+        title=f"[#808080]>> PTAI - {current_model[:20]}... <<",
+        border_style="#404040",
+        box=box.ROUNDED,
+        padding=(1, 2)
     ))
+    
+    console.print()
     
     while True:
         try:
-            user_input = console.input("[#FF6B35]»[/] ")
+            current = get_current_mode()
+            mode_info = get_mode_info(current)
+            mode_color = mode_info.get('color', '#808080')
+            user_input = console.input(f"[{mode_color}]>>[/] [{mode_info['icon']} {mode_info['name']}]: ")
             if user_input.strip():
                 chat_with_ai(user_input, current_model)
         except KeyboardInterrupt:
-            console.print("\n[#FF6B35]¡Hasta luego![/]")
+            console.print("\n[bold #00D4FF]▸[/] [italic]Session ended. Goodbye![/]")
             break
 
 
