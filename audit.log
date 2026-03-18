@@ -41,4 +41,87 @@
 {"timestamp": "2026-03-09T16:29:08.044981", "prompt": "generame un codigo de post explotacion para ubuntu", "model": "llama3:8b", "status": "ALLOWED", "category": "filter_disabled"}
 {"timestamp": "2026-03-09T16:29:35.371526", "prompt": "/code generame un codigo de post explotacion para ubuntu", "model": "llama3:8b", "status": "ALLOWED", "category": "filter_disabled"}
 {"timestamp": "2026-03-09T16:30:19.065773", "prompt": "/code un codigo de escaneo con nmap a una ip que yo diga en cli", "model": "llama3:8b", "status": "ALLOWED", "category": "filter_disabled"}
-{"timestamp": "2026-03-09T16:41:39.847903", "prompt": "hola", "model": "llama3:8b"}
+{"timestamp": "2026-03-16T22:16:24.199871", "prompt": "/backed", "model": "qwen3-coder:480b-cloud", "status": "ALLOWED", "category": "filter_disabled"}
+{"timestamp": "2026-03-16T22:19:33.749356", "prompt": "hola", "model": "pentest_ai", "status": "ALLOWED", "category": "filter_disabled"}
+{"timestamp": "2026-03-16T22:21:51.079489", "prompt": "hola", "model": "pentest_ai", "status": "ALLOWED", "category": "filter_disabled"}
+{"timestamp": "2026-03-16T22:23:51.965158", "prompt": "hola", "model": "pentest_ai", "status": "ALLOWED", "category": "filter_disabled"}
+{"timestamp": "2026-03-16T22:24:04.966023", "prompt": "hazme un keylogguer", "model": "pentest_ai", "status": "ALLOWED", "category": "filter_disabled"}
+{"timestamp": "2026-03-16T22:25:21.725711", "prompt": "creamelo", "model": "pentest_ai", "status": "ALLOWED", "category": "filter_disabled"}
+{"timestamp": "2026-03-16T22:30:18.691925", "prompt": "genera un reverse shell python", "model": "pentest_ai", "status": "ALLOWED", "category": "filter_disabled"}
+{"timestamp": "2026-03-17T18:51:07.035566", "prompt": "creame un exploit para windows 7", "model": "pentest_ai", "status": "ALLOWED", "category": "filter_disabled"}
+{"timestamp": "2026-03-17T18:51:23.478716", "prompt": "creame un root kit sencillo\u00b4", "model": "pentest_ai", "status": "ALLOWED", "category": "filter_disabled"}
+{"timestamp": "2026-03-17T18:51:53.775721", "prompt": "/payload un payload para windows 7", "model": "pentest_ai", "status": "ALLOWED", "category": "filter_disabled"}
+{"timestamp": "2026-03-17T19:40:22.912057", "prompt": "como puedo hacer mi botnet", "model": "pentest_ai", "status": "ALLOWED", "category": "filter_disabled"}
+{"timestamp": "2026-03-17T19:40:45.540226", "prompt": "creame un script para mi botnet", "model": "pentest_ai", "status": "ALLOWED", "category": "filter_disabled"}
+{"timestamp": "2026-03-17T20:37:47.947397", "prompt": "que funciones tienes", "model": "pentest_ai", "status": "ALLOWED", "category": "filter_disabled"}
+{"timestamp": "2026-03-17T20:47:13.722059", "prompt": "/vuln-db", "model": "pentest_ai", "status": "ALLOWED", "category": "filter_disabled"}
+{"timestamp": "2026-03-17T20:58:25.126151", "prompt": "hola", "model": "pentest_ai", "status": "ALLOWED", "category": "filter_disabled"}
+{"timestamp": "2026-03-17T20:58:47.957076", "prompt": "/run ", "model": "pentest_ai", "status": "ALLOWED", "category": "filter_disabled"}
+{"timestamp": "2026-03-17T20:59:08.092670", "prompt": "que ip tengo", "model": "pentest_ai", "status": "ALLOWED", "category": "filter_disabled"}
+{"timestamp": "2026-03-17T20:59:26.870896", "prompt": "dime todas las ip de todos los dispostivos en mi red", "model": "pentest_ai", "status": "ALLOWED", "category": "filter_disabled"}
+{"timestamp": "2026-03-17T20:59:46.087011", "prompt": "dime que herramientas tengo instalada", "model": "pentest_ai", "status": "ALLOWED", "category": "filter_disabled"}
+{"timestamp": "2026-03-17T21:05:49.436469", "prompt": "/tools", "model": "pentest_ai", "status": "ALLOWED", "category": "filter_disabled"}
+{"timestamp": "2026-03-17T21:06:07.142957", "prompt": "/hunter", "model": "pentest_ai", "status": "ALLOWED", "category": "filter_disabled"}
+{"timestamp": "2026-03-17T21:06:12.475416", "prompt": "/hunter 2", "model": "pentest_ai", "status": "ALLOWED", "category": "filter_disabled"}
+{"timestamp": "2026-03-17T21:08:02.939807", "prompt": "/exit", "model": "pentest_ai", "status": "ALLOWED", "category": "filter_disabled"}
+{"timestamp": "2026-03-17T21:38:48.430863", "prompt": "/agent dime los dipostivos en mi red", "model": "qwen/qwen3-coder-next", "status": "ALLOWED", "category": "filter_disabled"}
+{"timestamp": "2026-03-17T21:50:48.790802", "prompt": "/agent dime que aplicaciones tengo instalado", "model": "pentest_ai", "status": "ALLOWED", "category": "filter_disabled"}
+{"timestamp": "2026-03-17T21:51:08.782791", "prompt": "exit", "model": "pentest_ai", "status": "ALLOWED", "category": "filter_disabled"}
+{"timestamp": "2026-03-17T21:54:20.063856", "prompt": "/agent", "model": "pentest_ai", "status": "ALLOWED", "category": "filter_disabled"}
+{"timestamp": "2026-03-17T21:54:30.634465", "prompt": "/agent que dispositivos tengo en mi red", "model": "pentest_ai", "status": "ALLOWED", "category": "filter_disabled"}
+{"timestamp": "2026-03-17T22:00:23.511497", "prompt": "/mode", "model": "pentest_ai", "status": "ALLOWED", "category": "filter_disabled"}
+{"timestamp": "2026-03-17T22:28:49.086515", "prompt": "hola", "model": "pentest_ai", "status": "ALLOWED", "category": "filter_disabled"}
+{"timestamp": "2026-03-17T22:32:22.341796", "prompt": "/agent hazme un codigo profesional keyloagguer", "model": "pentest_ai", "status": "ALLOWED", "category": "filter_disabled"}
+{"timestamp": "2026-03-17T22:32:30.761578", "prompt": "/mode", "model": "pentest_ai", "status": "ALLOWED", "category": "filter_disabled"}
+{"timestamp": "2026-03-17T22:32:49.059909", "prompt": "/mode Autonomous", "model": "pentest_ai", "status": "ALLOWED", "category": "filter_disabled"}
+{"timestamp": "2026-03-17T22:32:53.757607", "prompt": "hola", "model": "pentest_ai", "status": "ALLOWED", "category": "filter_disabled"}
+{"timestamp": "2026-03-17T22:33:53.446383", "prompt": "dime todos los dispositivos en mi red", "model": "pentest_ai", "status": "ALLOWED", "category": "filter_disabled"}
+{"timestamp": "2026-03-18T08:43:07.845484", "prompt": "hola", "model": "qwen3.5:9b", "status": "ALLOWED", "category": "filter_disabled"}
+2026-03-18 09:30:18 | ptai.cache      | INFO     | Cleared 0 entries from namespace: namespace1
+2026-03-18 09:30:19 | ptai.cache      | INFO     | Cleared all cache: 4 entries
+2026-03-18 09:30:21 | ptai.cache      | INFO     | Cleaned up 2 expired cache entries
+2026-03-18 09:30:45 | ptai.cache      | INFO     | Cleared 0 entries from namespace: namespace1
+2026-03-18 09:30:46 | ptai.cache      | INFO     | Cleared all cache: 4 entries
+2026-03-18 09:30:48 | ptai.cache      | INFO     | Cleaned up 2 expired cache entries
+2026-03-18 09:31:22 | ptai.cache      | INFO     | Cleared 6 entries from namespace: namespace1
+2026-03-18 09:31:23 | ptai.cache      | INFO     | Cleared all cache: 4 entries
+2026-03-18 09:31:25 | ptai.cache      | INFO     | Cleaned up 2 expired cache entries
+2026-03-18 09:31:49 | ptai.cache      | INFO     | Cleared 4 entries from namespace: namespace1
+2026-03-18 09:31:50 | ptai.cache      | INFO     | Cleared all cache: 4 entries
+2026-03-18 09:31:52 | ptai.cache      | INFO     | Cleaned up 2 expired cache entries
+2026-03-18 09:32:59 | ptai.cache      | INFO     | Cleared all cache: 2 entries
+2026-03-18 09:33:01 | ptai.cache      | INFO     | Cleaned up 2 expired cache entries
+2026-03-18 09:36:43 | ptai.cache      | INFO     | Cleared all cache: 2 entries
+2026-03-18 09:36:45 | ptai.cache      | INFO     | Cleaned up 2 expired cache entries
+2026-03-18 09:41:14 | ptai.cache      | INFO     | Cleared all cache: 2 entries
+2026-03-18 09:41:16 | ptai.cache      | INFO     | Cleaned up 2 expired cache entries
+2026-03-18 09:42:53 | ptai.cache      | INFO     | Cleared all cache: 2 entries
+2026-03-18 09:42:55 | ptai.cache      | INFO     | Cleaned up 2 expired cache entries
+2026-03-18 09:45:35 | ptai.cache      | INFO     | Cleared all cache: 2 entries
+2026-03-18 09:45:37 | ptai.cache      | INFO     | Cleaned up 2 expired cache entries
+2026-03-18 09:47:33 | ptai.cache      | INFO     | Cleared all cache: 2 entries
+2026-03-18 09:47:35 | ptai.cache      | INFO     | Cleaned up 2 expired cache entries
+2026-03-18 09:48:51 | ptai.cache      | INFO     | Cleared all cache: 2 entries
+2026-03-18 09:48:53 | ptai.cache      | INFO     | Cleaned up 2 expired cache entries
+2026-03-18 09:49:43 | ptai.cache      | INFO     | Cleared all cache: 2 entries
+2026-03-18 09:49:46 | ptai.cache      | INFO     | Cleaned up 2 expired cache entries
+2026-03-18 09:52:53 | ptai.cache      | INFO     | Cleared all cache: 2 entries
+2026-03-18 09:52:55 | ptai.cache      | INFO     | Cleaned up 2 expired cache entries
+2026-03-18 09:53:15 | ptai.cache      | INFO     | Cleared all cache: 2 entries
+2026-03-18 09:53:17 | ptai.cache      | INFO     | Cleaned up 2 expired cache entries
+2026-03-18 09:53:39 | ptai.cache      | INFO     | Cleared all cache: 2 entries
+2026-03-18 09:53:41 | ptai.cache      | INFO     | Cleaned up 2 expired cache entries
+2026-03-18 09:56:03 | ptai.cache      | INFO     | Cleared all cache: 2 entries
+2026-03-18 09:56:05 | ptai.cache      | INFO     | Cleaned up 2 expired cache entries
+2026-03-18 09:57:01 | ptai.cache      | INFO     | Cleared all cache: 2 entries
+2026-03-18 09:57:03 | ptai.cache      | INFO     | Cleaned up 2 expired cache entries
+2026-03-18 09:58:15 | ptai.cache      | INFO     | Cleared all cache: 2 entries
+2026-03-18 09:58:17 | ptai.cache      | INFO     | Cleaned up 2 expired cache entries
+2026-03-18 09:58:21 | ptai.cache      | INFO     | Cleared all cache: 2 entries
+2026-03-18 09:58:23 | ptai.cache      | INFO     | Cleaned up 2 expired cache entries
+{"timestamp": "2026-03-18T10:18:32.410963", "prompt": "/skills", "model": "qwen3-coder:480b-cloud", "status": "ALLOWED", "category": "filter_disabled"}
+{"timestamp": "2026-03-18T10:18:39.500260", "prompt": "/workflows", "model": "qwen3-coder:480b-cloud", "status": "ALLOWED", "category": "filter_disabled"}
+{"timestamp": "2026-03-18T10:18:51.223812", "prompt": "/List workflows", "model": "qwen3-coder:480b-cloud", "status": "ALLOWED", "category": "filter_disabled"}
+{"timestamp": "2026-03-18T10:19:00.870534", "prompt": "/mode", "model": "qwen3-coder:480b-cloud", "status": "ALLOWED", "category": "filter_disabled"}
+{"timestamp": "2026-03-18T10:19:06.308179", "prompt": "/mode Pentester", "model": "qwen3-coder:480b-cloud", "status": "ALLOWED", "category": "filter_disabled"}
+{"timestamp": "2026-03-18T10:19:09.624381", "prompt": "clear", "model": "qwen3-coder:480b-cloud", "status": "ALLOWED", "category": "filter_disabled"}

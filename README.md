@@ -35,20 +35,23 @@ El agente ahora tiene capacidad de pensamiento autónomo y ejecución automátic
 ```
 Usuario: "dime los dispositivos en mi red"
 Agente: 
-  [*] Red: 10.47.89.0/24
-  [+] Host activos encontrados:
-     10.47.89.1 - ACTIVE
-     10.47.89.170 - ACTIVE (DC-56-7B-FA-42-C1)
+   [*] Red: 10.47.89.0/24
+   [+] Host activos encontrados:
+      10.47.89.1 - ACTIVE
+      10.47.89.170 - ACTIVE (DC-56-7B-FA-42-C1)
 ```
 
-**Motor de razonamiento:**
-- Análisis de intención automático
-- Selección de herramientas inteligente
+**Motor de razonamiento mejorado:**
+- Análisis de intención automático con NLP avanzado
+- Selección de herramientas inteligente con aprendizaje adaptativo
 - Workflows predefinidos (recon, vuln_assess, web_assess, full_pentest)
-- Pensamiento paso a paso
+- Pensamiento paso a paso con cadena de pensamiento (Chain-of-Thought)
 - Descubrimiento de red automático
 - Investigación web automática
 - Mejora de código con memoria
+- **Auto-curación inteligente**: Detecta fallos de herramientas y cambia automáticamente a alternativas
+- **Aprendizaje continuo**: Mejora su rendimiento basado en experiencias previas
+- **Toma de decisiones con confianza**: Evalúa resultados y ajusta acciones futuras
 
 **Comandos del Agente:**
 ```bash
@@ -56,6 +59,8 @@ Agente:
 /agent busca como hacer un reverse shell   # Investigación web
 /agent mejora este script                  # Mejora código
 /agent que dispositivos tengo en mi red    # Descubrimiento hosts
+/agent autoheal on/off                     # Control de auto-curación
+/agent learning stats                      # Ver estadísticas de aprendizaje
 ```
 
 ### Sistema de Modos Especializados
@@ -149,6 +154,9 @@ python main.py
 /status              # Ver estado del agente
 /reset               # Resetear memoria
 /summary             # Resumen de actividad
+/agent autoheal on   # Activar auto-curación inteligente
+/agent autoheal off  # Desactivar auto-curación inteligente
+/agent learning stats# Ver estadísticas de aprendizaje y adaptación
 ```
 
 ### Escaneos Automáticos
@@ -369,7 +377,7 @@ El sistema detecta automáticamente más de 30 tipos de intenciones:
 | genera, create, make, code | generate |
 | analiza, analyze | analyze |
 
-## Herramientas de Pentesting
+## Herramientas de Pentesting (108+ herramientas)
 
 ### Reconocimiento
 - nmap, whatweb, theHarvester
@@ -389,6 +397,120 @@ El sistema detecta automáticamente más de 30 tipos de intenciones:
 ### Post-Explotación
 - mimikatz, linpeas, winpeas
 - pspy, gtfobins, lolbas
+
+### Nuevas Categorías v2.1
+
+| Categoría | Herramientas |
+|-----------|--------------|
+| **Cloud Security** | prowler, cloud_enum, awscli, azure_cli, gcloud |
+| **API Security** | restler, brakeman, bandit |
+| **CTF/Pwn** | pwntools, angr, radare2, ghidra |
+| **Passive Recon** | shodan, censys, crtsh, virustotal, urlscan, wayback |
+| **Active Recon** | ffuf, katana, gospider, dalfox |
+| **Privilege Escalation** | linpeas, winPEAS, linux-exploit-suggester |
+| **Container Security** | trivy, dockle, clair, anchore |
+| **CI/CD Security** | checkov, terrascan, kics |
+| **Mobile Security** | drozer, mobsf, frida |
+| **OSINT** | maltego, recon-ng, whois |
+| **SSL/TLS** | testssl, sslscan |
+| **DNS** | dnsrecon, dnsenum, fierce |
+| **Vulnerability DB** | cve, exploitdb, searchsploit |
+
+### Funciones Avanzadas de Pentesting
+
+```python
+# Validación de targets
+from src.tools.pentest import validate_target, sanitize_target
+valid, tipo = validate_target("192.168.1.1")  # (True, "ip")
+valid, tipo = validate_target("example.com")  # (True, "domain")
+
+# Parsing de resultados
+from src.tools.pentest import parse_nmap_output, parse_nikto_output, parse_nuclei_output
+resultado = parse_nmap_output(output)  # Extrae puertos, servicios, SO
+
+# Extracción de IOCs
+from src.tools.pentest import extract_ips_from_output, extract_domains_from_output, extract_cves_from_output
+ips = extract_ips_from_output(output)
+cves = extract_cves_from_output(output)
+
+# Workflows automatizados
+from src.tools.pentest import ptes_workflow, web_application_workflow, network_pentest_workflow
+resultados = ptes_workflow("target.com")  # 7 fases PTES
+
+# Generación de reportes
+from src.tools.pentest import generate_scan_report, export_report_to_file
+reporte = generate_scan_report(resultados)
+archivo = export_report_to_file(resultados, "mi_reporte", "json")
+
+# Análisis especializado
+from src.tools.pentest import analyze_ssl_tls, check_sensitive_files, api_security_test
+ssl_info = analyze_ssl_tls("target.com", 443)
+files = check_sensitive_files("target.com")
+api_test = api_security_test("api.target.com")
+```
+
+### Escaneos Especializados Disponibles
+
+| Función | Descripción |
+|---------|-------------|
+| `quick_scan()` | Escaneo rápido Nmap |
+| `full_scan()` | Escaneo completo todos los puertos |
+| `vuln_scan()` | Detección de vulnerabilidades |
+| `web_scan()` | Escaneo Nikto + WhatWeb |
+| `dir_scan()` | Directorios con Gobuster |
+| `stealth_scan()` | Escaneo sigiloso |
+| `port_scan()` | Puertos específicos |
+| `os_detect()` | Detección de SO |
+| `cms_scan()` | Detección CMS (WP, Joomla, Drupal) |
+| `ssl_scan()` | Análisis SSL/TLS |
+| `sql_injection_scan()` | SQLi con SQLMap |
+| `xss_scan()` | XSS con Nikto |
+| `subdomain_enum()` | Subdominios |
+| `dns_enum()` | Enumeración DNS |
+| `smb_enum()` | Enumeración SMB |
+| `ftp_anonymous()` | FTP anónimo |
+| `ssh_audit()` | Auditoría SSH |
+| `ldap_enum()` | Enumeración LDAP |
+| `mysql_enum()` | Enumeración MySQL |
+| `mongodb_enum()` | Enumeración MongoDB |
+| `redis_enum()` | Enumeración Redis |
+| `kubernetes_scan()` | Escaneo K8s |
+| `docker_scan()` | Escaneo Docker |
+| `graphql_scan()` | Análisis GraphQL |
+| `cloud_metadata_enum()` | Metadatos cloud |
+| `iot_scan()` | Dispositivos IoT |
+| `api_security_test()` | Seguridad API REST/GraphQL |
+
+### Análisis de Vulnerabilidades
+
+| Función | Descripción |
+|---------|-------------|
+| `analyze_service_vulnerabilities()` | Analiza CVEs por servicio/versión |
+| `check_cve_exploitable()` | Verifica si CVE tiene exploits |
+| `assess_risk_level()` | Evalúa nivel de riesgo por CVEs |
+| `suggest_remediation()` | Sugiere remediación por CVE |
+
+### Análisis de Configuraciones
+
+| Función | Descripción |
+|---------|-------------|
+| `check_security_headers()` | Verifica headers HTTP de seguridad |
+| `check_ssl_configuration()` | Verifica configuración SSL/TLS |
+| `check_ftp_security()` | Verifica seguridad FTP |
+| `check_smb_security()` | Verifica seguridad SMB |
+| `check_smtp_security()` | Verifica seguridad SMTP |
+
+### Utilidades de Pentesting
+
+| Función | Descripción |
+|---------|-------------|
+| `generate_payload()` | Genera payloads (reverse, bind, web shell) |
+| `search_exploit_db()` | Busca en Exploit-DB |
+| `passive_dns_lookup()` | DNS pasivo (crt.sh, VT) |
+| `passive_subdomain_enum()` | Subdominios pasivos |
+| `shodan_lookup()` | Consulta Shodan |
+| `calculate_cvss()` | Convierte score a severidad |
+| `export_findings_markdown()` | Exporta hallazgos a MD |
 
 ## Configuración de API Keys
 
@@ -515,6 +637,8 @@ La interfaz ahora tiene un diseño profesional con banner Skull ASCII:
 - 📦 Sistema de skills
 - 🔄 Sistema de workflows
 - 🌐 Compatible Windows/Linux/Mac
+- 🛡️ Auto-curación inteligente y aprendizaje adaptativo
+- 🧠 Razonamiento mejorado con cadena de pensamiento (Chain-of-Thought)
 ██████╗ ███████╗████████╗██████╗  ██████╗ 
 ██╔══██╗██╔════╝╚══██╔══╝██╔══██╗██╔═══██╗
 ██████╔╝█████╗     ██║   ██████╔╝██║   ██║
