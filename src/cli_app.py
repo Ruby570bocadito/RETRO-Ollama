@@ -16,9 +16,10 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from src.ollama_client import OllamaClient
 from src.ai.backends.multi_backend import create_client, MultiBackendClient
-from src.config.settings import OLLAMA_HOST, LMSTUDIO_HOST, DEFAULT_BACKEND
+from src.config import get_config
 from src.ai.prompts import SYSTEM_PROMPTS
 from src.tools.security import analyze_request, check_and_log, sanitize_target, validate_command
+from src.cli_commands.scan_commands import ScanCommands
 from src.tools.pentest import (
     quick_scan, full_scan, vuln_scan, web_scan, dir_scan,
     stealth_scan, port_scan, os_detect, search_exploits, aggressive_scan,
@@ -44,41 +45,46 @@ from src.tools.threat_intel import ThreatIntelligence
 from src.tools.incident_response import IncidentResponse
 from src.tools.metrics import SecurityMetrics
 from src.tools import vuln_db
+from src.tools.dependency_scanner import scan_dependencies
 
 app = typer.Typer(help="PTAI - Pentesting AI Tool")
 console = Console()
 
 def get_client(backend_name=None):
-    backend = backend_name or os.getenv("DEFAULT_BACKEND", "ollama")
+    config = get_config()
+    backend = backend_name or os.getenv("DEFAULT_BACKEND", config.ollama.host)
     if backend == "lmstudio":
-        return create_client("lmstudio", host=LMSTUDIO_HOST)
+        return create_client("lmstudio", host=config.ollama.host)
     elif backend == "llamacpp":
         return create_client("llamacpp", host="http://localhost:8080")
     else:
-        return create_client("ollama", host=OLLAMA_HOST)
+        return create_client("ollama", host=config.ollama.host)
 
 ollama = get_client()
 current_model = None
 chat_history = load_history()[:50]
 
-BANNER = """
+BANNER_SKULL = """
    ───▐▀▄──────▄▀▌───▄▄▄▄▄▄▄
 ───▌▒▒▀▄▄▄▄▀▒▒▐▄▀▀▒██▒██▒▀▀▄
 ──▐▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▀▄
-──▌▒▒▒▒▒▒▒▒▒▒▒▒▄▒▒▒▒▒▒▒▒▒▒▒▒▀▄
+──▌▒▒▒▒▒▒▒▒▒▒▒▄▒▒▒▒▒▒▒▒▒▒▒▒▀▄
 ▀█▒▒█▌▒▒█▒▒▐█▒▒▀▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▌
 ▀▌▒▒▒▒▒▀▒▀▒▒▒▒▒▀▀▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▐ ▄▄
 ▐▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▄█▒█
 ▐▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒█▀
-──▐▄▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▄▌
-────▀▄▄▀▀▀▀▄▄▀▀▀▀▀▀▄▄▀▀▀▀▀▀▄▄▀
+───▐▄▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▄▌
+─────▀▄▄▀▀▀▀▄▄▀▀▀▀▀▀▄▄▀▀▀▀▀▀▄▄▀
 
   [ {mode_name} ]   {mode_desc}
-============================================================
+ ============================================================
         +++ Powered by Local AI Models +++
         (Ollama, LM Studio, Llama.cpp)
-============================================================
+ ============================================================
 """
+
+BANNER = BANNER_SKULL
+MODE_BANNER = BANNER_SKULL
 
 MODE_BANNER = ""
 
@@ -768,47 +774,16 @@ def process_command(user_input: str) -> Optional[str]:
         return "generate_code|genera un payload para linux"
     
     elif cmd in ["/scan", "/vuln", "/web", "/dir", "/full", "/stealth", "/os"]:
-        if args:
-            return f"continue_scan|{cmd}|{args}"
-        return f"Uso: {cmd} <target> (ej: {cmd} 192.168.1.1)"
+        return ScanCommands.handle_scan(cmd, args)
     
     elif cmd == "/autopwn":
-        if args:
-            return f"continue_autopwn|{args}"
-        return "Uso: /autopwn <target> (ej: /autopwn 192.168.1.1)"
+        return ScanCommands.handle_autopwn(args)
     
     elif cmd == "/fullpentest":
-        if args:
-            return f"continue_fullpentest|{args}"
-        return "Uso: /fullpentest <target> (ej: /fullpentest 192.168.1.1)"
+        return ScanCommands.handle_fullpentest(args)
     
     elif cmd == "/enum":
-        if args:
-            console.print(f"[#FFD93D]🔍 Enumeracion completa en {args}...[/]")
-            console.print("[#FFD93D]1. Escaneo de puertos...[/]")
-            port_result = port_scan(args)
-            console.print("[#FFD93D]2. Deteccion de SO...[/]")
-            os_result = os_detect(args)
-            console.print("[#FFD93D]3. Enumeracion DNS...[/]")
-            dns_result = dns_enum(args)
-            console.print("[#FFD93D]4. Enumeracion de subdominios...[/]")
-            sub_result = subdomain_enum(args)
-            
-            all_output = f"Port Scan:\n{port_result.get('output', '')}\n\nOS Detect:\n{os_result.get('output', '')}\n\nDNS Enum:\n{dns_result.get('output', '')}\n\nSubdomain Enum:\n{sub_result.get('output', '')}"
-            
-            if port_result["success"]:
-                console.print(Panel(port_result["output"][:2000], title=f"Ports - {args}", border_style="#00FF88"))
-            if os_result["success"]:
-                console.print(Panel(os_result["output"][:2000], title=f"OS - {args}", border_style="#00FF88"))
-            if dns_result["success"]:
-                console.print(Panel(dns_result["output"][:2000], title=f"DNS - {args}", border_style="#FF6B35"))
-            if sub_result["success"]:
-                console.print(Panel(sub_result["output"][:2000], title=f"Subdomains - {args}", border_style="#FF6B35"))
-            
-            report_path = create_quick_report(args, {"output": all_output}, "enum")
-            console.print(f"[#00FF88]✓ Reporte: {report_path}[/]")
-            return f"Enumeracion completada. Reporte: {report_path}"
-        return "Uso: /enum <target> (ej: /enum 192.168.1.1)"
+        return ScanCommands.handle_enum(args)
     
     elif cmd == "/dns":
         if args:
@@ -1907,6 +1882,7 @@ COMMANDS = [
     "/hunter", "/crt", "/whois", "/history", "/clearhistory",
     "/session", "/resume", "/cve", "/cveupdate", "/recent",
     "/compliance", "/ioc", "/threat", "/incident", "/ir-steps", "/headers", "/vuln-db",
+    "/depscan",  # Dependency vulnerability scanner
     "/escalate", "/metrics", "/backend",
     # Agent commands
     "/agent", "/workflow", "/status", "/reset", "/findings", "/summary"

@@ -1,6 +1,8 @@
 import json
 import requests
 import os
+import hashlib
+import time
 from pathlib import Path
 from datetime import datetime
 from typing import List, Dict, Optional
@@ -10,6 +12,48 @@ CVE_DIR = BASE_DIR / "cve_data"
 CVE_DIR.mkdir(exist_ok=True)
 CVE_DB_FILE = CVE_DIR / "cisa_kev.json"
 CVE_DB_URL = "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
+
+# Simple file-based cache for CVE lookups
+CVE_CACHE_DIR = CVE_DIR / "cache"
+CVE_CACHE_DIR.mkdir(exist_ok=True)
+CVE_CACHE_TTL = 3600  # 1 hour cache TTL for CVE lookups
+
+def _get_cache_key(prefix: str, identifier: str) -> str:
+    """Generate a cache key from prefix and identifier"""
+    return f"{prefix}_{hashlib.md5(identifier.encode()).hexdigest()}"
+
+def _get_cached_result(cache_key: str) -> Optional[Dict]:
+    """Get cached result if it exists and is not expired"""
+    cache_file = CVE_CACHE_DIR / f"{cache_key}.json"
+    if not cache_file.exists():
+        return None
+    
+    try:
+        with open(cache_file, 'r') as f:
+            cached = json.load(f)
+        
+        # Check if cache is expired
+        if time.time() - cached.get('timestamp', 0) > CVE_CACHE_TTL:
+            # Remove expired cache
+            cache_file.unlink(missing_ok=True)
+            return None
+            
+        return cached.get('data')
+    except Exception:
+        # If there's any error reading cache, return None
+        return None
+
+def _save_to_cache(cache_key: str, data: Dict) -> None:
+    """Save data to cache with timestamp"""
+    cache_file = CVE_CACHE_DIR / f"{cache_key}.json"
+    try:
+        with open(cache_file, 'w') as f:
+            json.dump({
+                'timestamp': time.time(),
+                'data': data
+            }, f)
+    except Exception as e:
+        print(f"Warning: Failed to save to cache: {e}")
 
 def download_cisa_kev(force: bool = False) -> bool:
     if CVE_DB_FILE.exists() and not force:
@@ -41,14 +85,28 @@ def load_cve_db() -> List[Dict]:
     return []
 
 def search_cve(cve_id: str) -> Optional[Dict]:
+    # Check cache first
+    cache_key = _get_cache_key("cve", cve_id.upper())
+    cached_result = _get_cached_result(cache_key)
+    if cached_result is not None:
+        return cached_result
+    
     cves = load_cve_db()
     cve_id = cve_id.upper()
     for cve in cves:
         if cve.get("cveID", "").upper() == cve_id:
+            # Save to cache
+            _save_to_cache(cache_key, cve)
             return cve
     return None
 
 def search_by_keyword(keyword: str) -> List[Dict]:
+    # Check cache first
+    cache_key = _get_cache_key("keyword", keyword.lower())
+    cached_result = _get_cached_result(cache_key)
+    if cached_result is not None:
+        return cached_result
+    
     cves = load_cve_db()
     keyword = keyword.lower()
     results = []
@@ -61,7 +119,10 @@ def search_by_keyword(keyword: str) -> List[Dict]:
         if keyword in vendor or keyword in product or keyword in desc:
             results.append(cve)
     
-    return results[:50]
+    # Limit results and save to cache
+    limited_results = results[:50]
+    _save_to_cache(cache_key, limited_results)
+    return limited_results
 
 def search_by_vendor(vendor: str) -> List[Dict]:
     cves = load_cve_db()

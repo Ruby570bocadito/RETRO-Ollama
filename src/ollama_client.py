@@ -3,15 +3,16 @@ import json
 import time
 import logging
 from typing import Generator, Optional, List, Dict
-from src.config.settings import OLLAMA_HOST
+from src.config import get_config
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class OllamaClient:
-    def __init__(self, host: str = OLLAMA_HOST):
-        self.host = host
-        self.base_url = f"{host}/api"
+    def __init__(self, host: Optional[str] = None):
+        config = get_config()
+        self.host = host or config.ollama.host
+        self.base_url = f"{self.host}/api"
         self.current_model = None
         self.backend_name = "ollama"
         

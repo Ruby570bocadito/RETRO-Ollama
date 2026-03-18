@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+from typing import Dict, List
 
 BASE_DIR = Path(__file__).parent.parent
 CONFIG_FILE = BASE_DIR / "config.yaml"
@@ -7,10 +8,10 @@ HISTORY_FILE = BASE_DIR / "history.json"
 REPORTS_DIR = BASE_DIR / "reports"
 SCANS_DIR = BASE_DIR / "scans"
 
-OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://localhost:11434")
-LMSTUDIO_HOST = os.getenv("LMSTUDIO_HOST", "http://localhost:1234/v1")
-DEFAULT_MODEL = os.getenv("DEFAULT_MODEL", "llama3.2")
-DEFAULT_BACKEND = os.getenv("DEFAULT_BACKEND", "ollama")
+OLLAMA_HOST: str = os.getenv("OLLAMA_HOST", "http://localhost:11434")
+LMSTUDIO_HOST: str = os.getenv("LMSTUDIO_HOST", "http://localhost:1234/v1")
+DEFAULT_MODEL: str = os.getenv("DEFAULT_MODEL", "llama3.2")
+DEFAULT_BACKEND: str = os.getenv("DEFAULT_BACKEND", "ollama")
 
 # =============================================================================
 # CONFIGURACIÓN DE API KEYS
@@ -40,20 +41,20 @@ DEFAULT_BACKEND = os.getenv("DEFAULT_BACKEND", "ollama")
 # O ejecuta: python main.py --setup-keys
 # =============================================================================
 
-SHODAN_API_KEY = os.getenv("SHODAN_API_KEY", "")
-VIRUSTOTAL_API_KEY = os.getenv("VIRUSTOTAL_API_KEY", "")
-HUNTER_API_KEY = os.getenv("HUNTER_API_KEY", "")
-CENSYS_API_KEY = os.getenv("CENSYS_API_KEY", "")
-SECURITYTRAILS_API_KEY = os.getenv("SECURITYTRAILS_API_KEY", "")
+SHODAN_API_KEY: str = os.getenv("SHODAN_API_KEY", "")
+VIRUSTOTAL_API_KEY: str = os.getenv("VIRUSTOTAL_API_KEY", "")
+HUNTER_API_KEY: str = os.getenv("HUNTER_API_KEY", "")
+CENSYS_API_KEY: str = os.getenv("CENSYS_API_KEY", "")
+SECURITYTRAILS_API_KEY: str = os.getenv("SECURITYTRAILS_API_KEY", "")
 
-TOOLS_CATEGORIES = {
+TOOLS_CATEGORIES: Dict[str, List[str]] = {
     "recon": ["nmap", "whatweb", "theHarvester", "dnsenum", "wappalyzer"],
     "scanning": ["nikto", "nmap-scripts", "sqlmap", "dirb", "gobuster", "commix"],
     "exploitation": ["msfconsole", "searchsploit", "hydra", "john", "msfvenom"],
     "post": ["meterpreter", "reverse-shell", "pivoting"]
 }
 
-COLORS = {
+COLORS: Dict[str, str] = {
     "primary": "#FF6B35",
     "secondary": "#1A1A2E",
     "accent": "#00FF88",
@@ -67,7 +68,7 @@ os.makedirs(REPORTS_DIR, exist_ok=True)
 os.makedirs(SCANS_DIR, exist_ok=True)
 
 
-def check_api_keys():
+def check_api_keys() -> Dict[str, bool]:
     """Verifica qué API keys están configuradas"""
     return {
         "shodan": bool(SHODAN_API_KEY),
@@ -76,9 +77,9 @@ def check_api_keys():
     }
 
 
-def get_missing_keys():
+def get_missing_keys() -> List[str]:
     """Retorna lista de API keys faltantes"""
-    missing = []
+    missing: List[str] = []
     if not SHODAN_API_KEY:
         missing.append("SHODAN_API_KEY")
     if not VIRUSTOTAL_API_KEY:

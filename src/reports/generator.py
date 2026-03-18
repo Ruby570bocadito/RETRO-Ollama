@@ -2,7 +2,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional
 from jinja2 import Template
-from src.config.settings import REPORTS_DIR
+from src.config import get_config
 
 WEASYPRINT_AVAILABLE = False
 try:
@@ -185,7 +185,9 @@ def generate_report(
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     ext = "html" if format == "html" else "md"
     filename = f"report_{target}_{timestamp}.{ext}"
-    filepath = REPORTS_DIR / filename
+    config = get_config()
+    reports_dir = Path(config.paths.reports_dir) if hasattr(config.paths, 'reports_dir') else Path("reports")
+    filepath = reports_dir / filename
     
     if format == "html":
         template = Template(HTML_TEMPLATE)
@@ -258,7 +260,9 @@ def generate_pdf_report(
     
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     filename = f"report_{target}_{timestamp}.pdf"
-    filepath = REPORTS_DIR / filename
+    config = get_config()
+    reports_dir = Path(config.paths.reports_dir) if hasattr(config.paths, 'reports_dir') else Path("reports")
+    filepath = reports_dir / filename
     
     template = Template(HTML_TEMPLATE)
     

@@ -117,6 +117,17 @@ def delete_file(filepath: str) -> bool:
 
 
 def execute_command(command: str, timeout: int = 60, cwd: Optional[str] = None) -> Dict:
+    # Validate command for security
+    from src.tools.security import validate_command
+    is_valid, error_msg = validate_command(command)
+    if not is_valid:
+        return {
+            "success": False,
+            "output": "",
+            "error": f"Security validation failed: {error_msg}",
+            "returncode": -1
+        }
+    
     try:
         result = subprocess.run(
             command,
