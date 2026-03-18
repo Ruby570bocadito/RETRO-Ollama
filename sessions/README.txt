@@ -1,0 +1,1 @@
+Esta carpeta guarda las sesiones del programa.
