@@ -241,6 +241,18 @@ class AgentConfig:
         self.learning_enabled = True
         self.auto_select_tools = True
         self.ask_confirmation = False
+        
+        # Self-healing and adaptive capabilities
+        self.self_heal_enabled = True
+        self.max_heal_attempts = 3
+        self.adaptive_learning = True
+        self.result_verification = True
+        self.resource_aware = True
+        self.confidence_scoring = True
+        
+        # Performance tuning
+        self.tool_timeout_multiplier = 1.5
+        self.max_consecutive_failures = 5
     
     def to_dict(self) -> Dict:
         return {
@@ -891,9 +903,11 @@ class AutoAgent:
         self.tools = ToolRegistry()
         self.memory = AgentMemory()
         self.context: Dict = {}
+        self.config = AgentConfig()  # Add configuration
         self.max_iterations = 10
         self.state = AgentState.IDLE
         self.current_thoughts: List[str] = []
+        self.consecutive_failures: Dict[str, int] = {}  # Track consecutive failures per tool
         
     VALID_PENTEST_ACTIONS = {'scan', 'vuln_scan', 'web_scan', 'full_scan', 'recon', 'attack', 'pentest', 'osint', 'network_discovery', 'stealth_scan', 'quick_scan'}
     
@@ -958,7 +972,7 @@ Para otras tareas, por favor usa otro modelo de IA."""
         return action in ['scan', 'vuln_scan', 'web_scan', 'full_scan', 'recon', 'attack', 'pentest', 'osint', 'network_discovery', 'research', 'improve_code']
     
     def _execute_with_tools(self, user_input: str, intent: Dict, ollama_client, model: str) -> str:
-        """Execute with tool integration and iterative refinement"""
+        """Execute with tool integration, self-healing, and iterative refinement"""
         results = []
         target = intent.get('target')
         
@@ -989,15 +1003,20 @@ Para otras tareas, por favor usa otro modelo de IA."""
             results.append(f"[*] Using workflow: {workflow_name}")
             return self._execute_workflow(workflow_name, target, ollama_client, model)
         
-        # Execute single action based on intent
+        # Execute with self-healing capabilities
         action_str = action or "scan"
-        result = self._execute_action(action_str, target)
+        result = self._execute_with_self_heal(action_str, target)
         
         if isinstance(result, dict) and "error" in result:
             results.append(f"[!] Error: {result['error']}")
-            # Try alternative
-            results.append("[*] Trying alternative approach...")
-            result = self._execute_action("quick_scan", target)
+            # Try self-healing alternatives
+            heal_result = self._self_heal_execution(action_str, target, result['error'])
+            if heal_result:
+                result = heal_result
+            else:
+                # Fallback to quick scan
+                results.append("[*] Trying fallback approach...")
+                result = self._execute_action("quick_scan", target)
         
         # Store findings in memory
         if isinstance(result, dict):
@@ -1010,11 +1029,120 @@ Para otras tareas, por favor usa otro modelo de IA."""
                 evidence=str(result)[:500]
             )
             self.memory.add_finding(finding)
+            
+            # Learn from successful execution
+            if self.config.learning_enabled and "error" not in result:
+                self._learn_from_execution(action_str, target, True, str(result)[:100])
         
         # Generate analysis with LLM using context
         scan_results = self._format_results(result)
         
         return self._analyze_and_respond(target, action_str, scan_results, ollama_client, model)
+
+    def _learn_from_execution(self, action: str, target: str, success: bool, result_preview: str):
+        """Learn from tool execution outcomes"""
+        if not self.config.learning_enabled:
+            return
+            
+        # Update tool success/failure counts
+        if success:
+            self.memory.record_success(action)
+        else:
+            self.memory.record_failure(action)
+            
+        # Track consecutive failures for self-healing
+        if not success:
+            self.consecutive_failures[action] = self.consecutive_failures.get(action, 0) + 1
+        else:
+            self.consecutive_failures[action] = 0  # Reset on success
+
+    def _execute_with_self_heal(self, action: str, target: str) -> Any:
+        """Execute action with self-healing capabilities"""
+        # Check if we should try a different tool due to consecutive failures
+        if (self.config.self_heal_enabled and 
+            self.consecutive_failures.get(action, 0) >= self.config.max_consecutive_failures):
+            
+            # Try to get a better tool for this action's category
+            better_tool = self.tools.get_best_tool(
+                action, 
+                {k: v for k, v in self.memory.successful_tools.items() if k in self.memory.successful_tools}
+            )
+            
+            if better_tool and better_tool.name != action:
+                # Try the better tool first
+                try:
+                    result = better_tool.execute(target)
+                    if not isinstance(result, dict) or "error" not in result:
+                        # Success with alternative tool
+                        self._learn_from_execution(better_tool.name, target, True, str(result)[:100])
+                        return result
+                except Exception:
+                    pass  # Fall back to normal execution
+        
+        # Normal execution
+        tool = self.tools.get_tool(action)
+        if tool:
+            try:
+                result = tool.execute(target)
+                self._learn_from_execution(action, target, 
+                                         not (isinstance(result, dict) and "error" in result),
+                                         str(result)[:100] if result else "")
+                return result
+            except Exception as e:
+                self._learn_from_execution(action, target, False, str(e)[:100])
+                return {"error": str(e)}
+        
+        return {"error": f"No tool found for action: {action}"}
+
+    def _self_heal_execution(self, failed_action: str, target: str, error: str) -> Any:
+        """Attempt self-healing after a tool failure"""
+        if not self.config.self_heal_enabled:
+            return None
+            
+        # Get the failed tool
+        failed_tool = self.tools.get_tool(failed_action)
+        if not failed_tool or not failed_tool.fallback:
+            return None
+            
+        # Try the fallback tool
+        fallback_tool = self.tools.get_tool(failed_tool.fallback)
+        if fallback_tool:
+            try:
+                result = fallback_tool.execute(target)
+                if not isinstance(result, dict) or "error" not in result:
+                    # Success with fallback
+                    self._learn_from_execution(fallback_tool.name, target, True, str(result)[:100])
+                    return result
+            except Exception:
+                pass  # Continue to other healing strategies
+        
+        # If we have healing attempts left, try alternative approaches
+        heal_key = f"{failed_action}_heal"
+        if self.consecutive_failures.get(heal_key, 0) < self.config.max_heal_attempts:
+            self.consecutive_failures[heal_key] = self.consecutive_failures.get(heal_key, 0) + 1
+            
+            # Try related tools based on the action
+            related_tools = []
+            if "scan" in failed_action:
+                related_tools = ["quick_scan", "full_scan", "vuln_scan"]
+            elif "web" in failed_action:
+                related_tools = ["web_scan", "dir_scan"]
+            elif "osint" in failed_action:
+                related_tools = ["whois_lookup", "shodan_lookup"]
+            
+            for tool_name in related_tools:
+                if tool_name != failed_action:  # Don't retry the same failed tool
+                    tool = self.tools.get_tool(tool_name)
+                    if tool:
+                        try:
+                            result = tool.execute(target)
+                            if not isinstance(result, dict) or "error" not in result:
+                                self._learn_from_execution(tool_name, target, True, str(result)[:100])
+                                return result
+                        except Exception:
+                            continue
+        
+        return None
     
     def _execute_workflow(self, workflow_name: str, target: str, ollama_client, model: str) -> str:
         """Execute a complete workflow"""
