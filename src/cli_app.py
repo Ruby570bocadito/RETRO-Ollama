@@ -118,20 +118,14 @@ def print_status():
     mode_color = mode_info.get('color', '#808080')
     mode_icon = mode_info.get('icon', '')
     
-    status_table = Table(show_header=False, box=None, padding=(0, 2))
-    status_table.add_column("Label", style=f"bold {mode_color}")
-    status_table.add_column("Value", style=INFO_LIGHT)
-    status_table.add_row("Mode", f"{mode_icon} {mode_info['name']}")
-    status_table.add_row("Model", current_model or 'N/A')
-    status_table.add_row("Output", get_output_dir())
-    
-    console.print(Panel(
-        status_table,
-        border_style=mode_color,
-        box=box.ROUNDED,
-        padding=(0, 0),
-        title=f"[bold {mode_color}]STATUS[/]"
-    ))
+    # Sleek inline status bar
+    console.print(f"[dim]{'─' * 72}[/]")
+    console.print(
+        f"[bold {mode_color}]{mode_icon} {mode_info['name']}[/]  "
+        f"[dim]|[/]  [dim]model:[/] [bold]{current_model or 'N/A'}[/]  "
+        f"[dim]|[/]  [dim]output:[/] [dim]{get_output_dir()}[/]"
+    )
+    console.print(f"[dim]{'─' * 72}[/]")
     console.print()
 
 
@@ -1870,7 +1864,9 @@ HAZ, NO DIGAS QUE HARAS!"""
     start_time = time.time()
     response = []
     
-    console.print(f"[{ACCENT_ALT}]> Procesando...[/]")
+    # Clean thinking indicator
+    console.print()
+    console.print(f"[dim]thinking...[/]")
     
     for chunk in ollama.chat(model, messages):
         response.append(chunk)
@@ -1881,12 +1877,14 @@ HAZ, NO DIGAS QUE HARAS!"""
     clean_response, func_results = execute_function_call(full_response)
     
     if func_results:
-        console.print(Panel("\n".join(func_results), title=f"[{SUCCESS}]Resultados de funciones ejecutadas[/]", border_style=SUCCESS))
+        console.print()
+        console.print(Panel("\n".join(func_results), title=f"[{SUCCESS}]Function Results[/]", border_style=SUCCESS, box=box.SIMPLE))
+        console.print()
         messages.append({"role": "assistant", "content": clean_response})
         messages.append({"role": "user", "content": f"Resultados de las funciones: {func_results}"})
         
         response = []
-        console.print(f"[{ACCENT_ALT}]> Procesando resultados...[/]")
+        console.print(f"[dim]processing results...[/]")
         
         for chunk in ollama.chat(model, messages):
             response.append(chunk)
@@ -1896,8 +1894,17 @@ HAZ, NO DIGAS QUE HARAS!"""
     
     elapsed = int(time.time() - start_time)
     char_count = len(full_response)
-    console.print(f"\n[{SUCCESS}]OK Completado en {elapsed}s ({char_count} chars)[/]")
-    print()
+    words = len(full_response.split())
+    
+    # Clean metrics footer
+    console.print()
+    console.print(f"[dim]{'─' * 60}[/]")
+    console.print(
+        f"[dim]time[/] [bold {SUCCESS}]{elapsed}s[/]  "
+        f"[dim]words[/] [bold {SECONDARY}]{words}[/]  "
+        f"[dim]chars[/] [bold {ACCENT}]{char_count}[/]"
+    )
+    console.print()
     
     chat_history.append({"role": "user", "content": message})
     chat_history.append({"role": "assistant", "content": full_response})
@@ -1959,32 +1966,28 @@ def main(
     
     print_status()
     
+    # Modern command menu
+    menu_lines = [
+        f"[bold {CAT_SCAN}]SCANS          [/][bold {CAT_GENERATE}]GENERATION      [/][bold {CAT_ENUM}]ENUMERATION     [/][bold {CAT_UTILS}]UTILS[/]",
+        f"[dim]{'─' * 16}  {'─' * 16}  {'─' * 16}  {'─' * 11}[/dim]",
+        f"[{CAT_SCAN}]/scan <tgt>    [/][{CAT_GENERATE}]/code <desc>    [/][{CAT_ENUM}]/enum <tgt>      [/][{CAT_UTILS}]/tools[/]",
+        f"[{CAT_SCAN}]/vuln <tgt>    [/][{CAT_GENERATE}]/shell <type>   [/][{CAT_ENUM}]/dns <dom>       [/][{CAT_UTILS}]/run <cmd>[/]",
+        f"[{CAT_SCAN}]/web <tgt>     [/][{CAT_GENERATE}]/payload <tgt>  [/][{CAT_ENUM}]/subdomain <d>   [/][{CAT_UTILS}]/search <q>[/]",
+        f"[{CAT_SCAN}]/full <tgt>    [/][{CAT_GENERATE}]/script <desc>  [/][{CAT_ENUM}]/autopwn <tgt>   [/][{CAT_UTILS}]/report <t>[/]",
+        f"[{CAT_SCAN}]/stealth <tgt> [/][{CAT_GENERATE}]                [/][{CAT_ENUM}]/shodan <ip>     [/][{CAT_UTILS}]/cve <id>[/]",
+        f"[dim]{' ' * 16}  {' ' * 16}  [{CAT_ENUM}]/virus <dom>    [/][{CAT_UTILS}]/skills[/]",
+        f"[dim]{' ' * 16}  {' ' * 16}  [{CAT_ENUM}]/hunter <dom>   [/][{CAT_UTILS}]/workflows[/]",
+        f"[dim]{' ' * 16}  {' ' * 16}  [{CAT_ENUM}]/crt <domain>   [/]",
+        "",
+        f"[dim]Type /help for full command list - /modes to switch - /exit to quit[/]",
+    ]
+    
     console.print(Panel(
-        f"""[#A0A0A0]>> SCANS                        >> GENERATION[/]
-   /scan <target>    Quick nmap      /code <desc>   Generate code
-   /vuln <target>    Vuln scan       /shell <type>  Generate shell
-   /web <target>     Web analysis    /payload <t>   Generate payload
-   /full <target>    Full scan       /script <desc> Create script
-   /stealth <target> Evasion scan
-
-[#A0A0A0]>> ENUMERATION              >> APIs & INTEL[/]
-   /enum <target>    Full enum     /shodan <IP>   Shodan lookup
-   /dns <domain>     DNS enum      /virus <dom>   VirusTotal scan
-   /subdomain <d>   Subdomains    /hunter <d>    Hunter emails
-   /autopwn <t>     Auto-pentest  /crt <domain>  SSL certificates
-
-   [#A0A0A0]>> SYSTEM                  >> ADVANCED[/]
-   /run <cmd>       Execute cmd   /compliance    Check compliance
-   /search <term>   Search exploit /ioc <text>    Extract IOCs
-   /tools           List tools    /incident      IR workflow
-   /report <target> Generate rep  /cve <id>      CVE lookup
-   /skills           List skills   /workflows     List workflows
-
-   [#808080]>> HELP: /help /modes /history /files /agent /status /skills /workflows /exit""",
-        title=f"[#808080]>> PTAI - {current_model[:20]}... <<",
-        border_style="#404040",
+        "\n".join(menu_lines),
+        title=f"[bold {SECONDARY}]PTAI - {current_model[:30]}[/]",
+        border_style=TEXT_MUTED,
         box=box.ROUNDED,
-        padding=(1, 2)
+        padding=(0, 2)
     ))
     
     console.print()
@@ -1994,11 +1997,12 @@ def main(
             current = get_current_mode()
             mode_info = get_mode_info(current)
             mode_color = mode_info.get('color', '#808080')
-            user_input = console.input(f"[{mode_color}]>>[/] [{mode_info['icon']} {mode_info['name']}]: ")
+            user_input = console.input(f"[bold {mode_color}]{mode_info['icon']} {mode_info['name']} > [/]")
             if user_input.strip():
                 chat_with_ai(user_input, current_model)
         except KeyboardInterrupt:
-            console.print("\n[bold #00D4FF]▸[/] [italic]Session ended. Goodbye![/]")
+            console.print(f"\n[dim]{'─' * 60}[/]")
+            console.print(f"[dim]Session ended. Goodbye![/]")
             break
 
 

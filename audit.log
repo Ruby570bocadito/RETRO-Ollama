@@ -125,3 +125,4 @@
 {"timestamp": "2026-03-18T10:19:00.870534", "prompt": "/mode", "model": "qwen3-coder:480b-cloud", "status": "ALLOWED", "category": "filter_disabled"}
 {"timestamp": "2026-03-18T10:19:06.308179", "prompt": "/mode Pentester", "model": "qwen3-coder:480b-cloud", "status": "ALLOWED", "category": "filter_disabled"}
 {"timestamp": "2026-03-18T10:19:09.624381", "prompt": "clear", "model": "qwen3-coder:480b-cloud", "status": "ALLOWED", "category": "filter_disabled"}
+{"timestamp": "2026-04-01T01:49:21.946368", "prompt": "hola", "model": "f0rc3ps/nu11secur1tyAIRedTeamLite:latest", "status": "ALLOWED", "category": "filter_disabled"}

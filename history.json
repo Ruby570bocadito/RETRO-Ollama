@@ -166,5 +166,13 @@
   {
     "role": "assistant",
     "content": "Hola!\n\nNo te preocupes, no hemos perdido el hilo. Estoy aún aquí, listo para ayudarte a proteger y defender tu sistema.\n\n¿Qué deseas hacer a continuación? ¿Quieres analizar algún elemento de la lista de aplicaciones y carpetas, o verificar algo específico?"
+  },
+  {
+    "role": "user",
+    "content": "hola"
+  },
+  {
+    "role": "assistant",
+    "content": "¡Hola! ¿Cómo puedo ayudarte hoy?"
   }
 ]
