@@ -367,14 +367,14 @@ def sanitize_output(output: str, sensitive_patterns: List[str] = None) -> str:
 def format_finding_markdown(finding: Dict) -> str:
     """Formatea finding como markdown"""
     severity_emoji = {
-        "critical": "🔴",
-        "high": "🟠",
-        "medium": "🟡",
-        "low": "🟢",
-        "info": "🔵"
+        "critical": "[CRIT]",
+        "high": "[HIGH]",
+        "medium": "[MED]",
+        "low": "[LOW]",
+        "info": "[INFO]"
     }
     
-    emoji = severity_emoji.get(finding.get("severity", "info"), "⚪")
+    emoji = severity_emoji.get(finding.get("severity", "info"), "[?]")
     
     md = f"### {emoji} {finding.get('title', 'Untitled')}\n\n"
     md += f"**Severidad:** {finding.get('severity', 'N/A')}\n\n"

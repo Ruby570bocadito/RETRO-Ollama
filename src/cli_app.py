@@ -40,6 +40,14 @@ from src.tools.sessions import create_session, load_session, list_sessions, add_
 from src.tools.cve import search_cve, search_by_keyword, get_recent_exploits, get_stats, format_cve, download_cisa_kev
 from src.reports.generator import create_quick_report
 from src.modes import get_current_mode, set_mode, get_mode_info, list_modes, get_mode_prompt, MODES
+from src.cli_theme import (
+    PRIMARY, PRIMARY_DIM, SECONDARY, ACCENT, ACCENT_ALT,
+    SUCCESS, ERROR, WARNING, INFO, INFO_LIGHT,
+    TEXT_PRIMARY, TEXT_SECONDARY, TEXT_DIM, TEXT_MUTED,
+    CAT_SCAN, CAT_GENERATE, CAT_ENUM, CAT_UTILS,
+    MODE_CONFIG, SYMBOLS,
+    fmt, bold, dim, status_ok, status_err, status_warn, status_info, label, cmd
+)
 from src.tools.compliance import ComplianceChecker
 from src.tools.threat_intel import ThreatIntelligence
 from src.tools.incident_response import IncidentResponse
@@ -64,46 +72,25 @@ ollama = get_client()
 current_model = None
 chat_history = load_history()[:50]
 
-BANNER_SKULL = """
-   ───▐▀▄──────▄▀▌───▄▄▄▄▄▄▄
-───▌▒▒▀▄▄▄▄▀▒▒▐▄▀▀▒██▒██▒▀▀▄
-──▐▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▀▄
-──▌▒▒▒▒▒▒▒▒▒▒▒▄▒▒▒▒▒▒▒▒▒▒▒▒▀▄
-▀█▒▒█▌▒▒█▒▒▐█▒▒▀▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▌
-▀▌▒▒▒▒▒▀▒▀▒▒▒▒▒▀▀▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▐ ▄▄
-▐▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▄█▒█
-▐▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒█▀
-───▐▄▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▄▌
-─────▀▄▄▀▀▀▀▄▄▀▀▀▀▀▀▄▄▀▀▀▀▀▀▄▄▀
-
-  [ {mode_name} ]   {mode_desc}
- ============================================================
-        +++ Powered by Local AI Models +++
-        (Ollama, LM Studio, Llama.cpp)
- ============================================================
-"""
+BANNER_SKULL = (
+    "   [bold {mode_color}]───▐▀▄──────▄▀▌───▄▄▄▄▄▄▄\n"
+    " ───▌▒▒▀▄▄▄▄▀▒▒▐▄▀▀▒██▒██▒▀▀▄\n"
+    " ──▐▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▀▄\n"
+    " ──▌▒▒▒▒▒▒▒▒▒▒▒▄▒▒▒▒▒▒▒▒▒▒▒▒▀▄\n"
+    " ▀█▒▒█▌▒▒█▒▒▐█▒▒▀▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▌\n"
+    " ▀▌▒▒▒▒▒▀▒▀▒▒▒▒▒▀▀▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▐ ▄▄\n"
+    " ▐▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▄█▒█\n"
+    " ▐▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒█▀\n"
+    " ───▐▄▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▄▌\n"
+    " ─────▀▄▄▀▀▀▀▄▄▀▀▀▀▀▀▄▄▀▀▀▀▀▀▄▄▀[/]\n"
+    "\n"
+    "  [bold {mode_color}]{mode_name}[/bold {mode_color}]   {mode_desc}\n"
+    "  [dim]v2.0  |  Powered by Local AI Models  |  Ollama - LM Studio - Llama.cpp[/dim]\n"
+    "  " + "─" * 72 + "\n"
+)
 
 BANNER = BANNER_SKULL
 MODE_BANNER = BANNER_SKULL
-
-MODE_BANNER = ""
-
-MODE_BANNER = """
-   ───▐▀▄──────▄▀▌───▄▄▄▄▄▄▄
-───▌▒▒▀▄▄▄▄▀▒▒▐▄▀▀▒██▒██▒▀▀▄
-──▐▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▀▄
-──▌▒▒▒▒▒▒▒▒▒▒▒▒▄▒▒▒▒▒▒▒▒▒▒▒▒▒▀▄
-▀█▒▒█▌▒▒█▒▒▐█▒▒▀▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▌
-▀▌▒▒▒▒▒▀▒▀▒▒▒▒▒▀▀▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▐ ▄▄
-▐▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▄█▒█
-▐▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒█▀
-──▐▄▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▄▌
-────▀▄▄▀▀▀▀▄▄▀▀▀▀▀▀▄▄▀▀▀▀▀▀▄▄▀
-
-============================================================
-  [ {mode_name} ]   {mode_desc}
-============================================================
-"""
 
 
 def print_banner(show_mode=True):
@@ -113,12 +100,14 @@ def print_banner(show_mode=True):
         mode_info = get_mode_info(current)
         console.print(BANNER.format(
             mode_name=mode_info['name'],
-            mode_desc=mode_info['description']
+            mode_desc=mode_info['description'],
+            mode_color=mode_info.get('color', '#808080')
         ))
     else:
         console.print(BANNER.format(
             mode_name="RETRO-OLLAMA",
-            mode_desc="Pentesting AI Tool"
+            mode_desc="Pentesting AI Tool",
+            mode_color=SECONDARY
         ))
     console.print()
 
@@ -128,14 +117,20 @@ def print_status():
     mode_info = get_mode_info(current)
     mode_color = mode_info.get('color', '#808080')
     mode_icon = mode_info.get('icon', '')
+    
+    status_table = Table(show_header=False, box=None, padding=(0, 2))
+    status_table.add_column("Label", style=f"bold {mode_color}")
+    status_table.add_column("Value", style=INFO_LIGHT)
+    status_table.add_row("Mode", f"{mode_icon} {mode_info['name']}")
+    status_table.add_row("Model", current_model or 'N/A')
+    status_table.add_row("Output", get_output_dir())
+    
     console.print(Panel(
-        f" Mode: {mode_info['name']}   |   "
-        f"Model: {current_model or 'N/A'}   |   "
-        f"Output: {get_output_dir()}",
+        status_table,
         border_style=mode_color,
         box=box.ROUNDED,
-        padding=(0, 1),
-        title=f"[{mode_color}][{mode_icon}] MODO ACTUAL[/]"
+        padding=(0, 0),
+        title=f"[bold {mode_color}]STATUS[/]"
     ))
     console.print()
 
@@ -169,17 +164,24 @@ def list_models():
 def select_model() -> str:
     global ollama
     
+    # Professional backend selection panel
+    backend_table = Table(show_header=False, box=None, padding=(0, 1))
+    backend_table.add_column("Num", style="bold #00D4FF", width=4)
+    backend_table.add_column("Backend", style="bold #E8E8E8", width=14)
+    backend_table.add_column("Endpoint", style="#808080")
+    backend_table.add_row("[1]", "Ollama",    "localhost:11434")
+    backend_table.add_row("[2]", "LM Studio", "localhost:1234")
+    backend_table.add_row("[3]", "Llama.cpp", "localhost:8080")
+    
     console.print(Panel(
-        "  [1]  Ollama    (localhost:11434)\n"
-        "  [2]  LM Studio (localhost:1234)\n"
-        "  [3]  Llama.cpp (localhost:8080)",
-        title="[#808080]>> Select Backend <<",
-        border_style="#404040",
+        backend_table,
+        title=f"[bold {SECONDARY}]Select Backend[/]",
+        border_style=TEXT_MUTED,
         box=box.ROUNDED,
         padding=(1, 2)
     ))
     console.print()
-    backend_choice = console.input("[#808080]>> Choose (1-3): ")
+    backend_choice = console.input(f"[bold {SECONDARY}]>[/] [dim]Choose (1-3): [/dim]")
     
     if backend_choice == "2":
         os.environ["DEFAULT_BACKEND"] = "lmstudio"
@@ -195,34 +197,41 @@ def select_model() -> str:
         backend_name = "Ollama"
     
     if not ollama.check_connection():
-        console.print(f"[red]✗ Cannot connect to {backend_name}[/red]")
+        console.print(f"[{ERROR}]X Cannot connect to {backend_name}[/{ERROR}]")
         sys.exit(1)
     
-    console.print(f"[green]OK Connected to {backend_name}[/green]\n")
+    console.print(f"[bold {SUCCESS}]OK Connected to {backend_name}[/bold {SUCCESS}]\n")
     
     models = ollama.list_models()
     if not models:
-        console.print("[yellow]No models available on this backend[/yellow]")
+        console.print(f"[{WARNING}]No models available on this backend[/{WARNING}]")
         sys.exit(1)
     
-    console.print(f"\n[bold #C0C0C0]Available Models on {backend_name} ({len(models)}):")
+    # Professional model table
+    model_table = Table(title="", box=box.SIMPLE_HEAVY, show_header=True, border_style=TEXT_MUTED)
+    model_table.add_column("#", style="dim", justify="center", width=3)
+    model_table.add_column("Model", style=TEXT_PRIMARY)
+    model_table.add_column("Size", style=INFO_LIGHT, justify="right")
+    
     for i, m in enumerate(models, 1):
         name = m.get("name", "Unknown")
         size = m.get("size", 0) / (1024**3)
-        color = "#A0A0A0" if i % 2 == 0 else "#B0B0B0"
-        console.print(f"  [{color}]{i}.[/] {name} [dim]({size:.2f} GB)[/]")
+        model_table.add_row(str(i), name, f"{size:.2f} GB")
     
-    console.print(f"\n[bold #909090]▸ Select model (1-{len(models)}):")
+    console.print(model_table)
+    console.print()
+    
+    console.print(f"[bold {SECONDARY}]>[/] [dim]Select model (1-{len(models)}): [/dim]")
     try:
-        choice = int(console.input("\n▸ ")) - 1
+        choice = int(console.input("\n> ")) - 1
         if 0 <= choice < len(models):
             selected = models[choice].get("name", "llama3.2")
-            console.print(f"[#909090]✓[/#909090] [bold]Selected:[/bold] {selected}\n")
+            console.print(f"\n[bold {SUCCESS}]OK Selected: {selected}[/bold {SUCCESS}]\n")
             return selected
     except:
         pass
     selected = models[0].get("name", "llama3.2")
-    console.print(f"[#909090]✓[/#909090] [bold]Selected:[/bold] {selected}\n")
+    console.print(f"\n[bold {SUCCESS}]OK Selected: {selected}[/bold {SUCCESS}]\n")
     return selected
 
 
@@ -401,121 +410,121 @@ def auto_execute(intent: Dict) -> Optional[str]:
     
     if action == "scan" and target:
         if tool == "vuln":
-            console.print(f"[#FFD93D]🔍 Escaneo de vulnerabilidades en {target}...[/]")
+            console.print(f"[{ACCENT_ALT}]> Escaneo de vulnerabilidades en {target}...[/]")
             result = vuln_scan(target)
             if result["success"]:
-                console.print(Panel(result["output"][:3000], title=f"Vuln Scan - {target}", border_style="#FF4757"))
-                return "Escaneo completado. ¿Analizo los resultados?"
+                console.print(Panel(result["output"][:3000], title=f"Vuln Scan - {target}", border_style=ERROR))
+                return "Escaneo completado. Analizo los resultados?"
         
         elif tool == "web":
-            console.print(f"[#FFD93D]🔍 Escaneo web en {target}...[/]")
+            console.print(f"[{ACCENT_ALT}]> Escaneo web en {target}...[/]")
             result = web_scan(target)
             for t, res in result.items():
                 if res["success"]:
-                    console.print(Panel(res["output"][:2000], title=f"{t} - {target}", border_style="#FF6B35"))
+                    console.print(Panel(res["output"][:2000], title=f"{t} - {target}", border_style=ACCENT))
             return "Escaneo web completado."
         
         elif tool == "dir":
-            console.print(f"[#FFD93D]🔍 Escaneo de directorios en {target}...[/]")
+            console.print(f"[{ACCENT_ALT}]> Escaneo de directorios en {target}...[/]")
             result = dir_scan(target)
             if result["success"]:
-                console.print(Panel(result["output"][:2000], title=f"Dir Scan - {target}", border_style="#FF6B35"))
+                console.print(Panel(result["output"][:2000], title=f"Dir Scan - {target}", border_style=ACCENT))
             return "Escaneo de directorios completado."
         
         elif tool == "full":
-            console.print(f"[#FFD93D]🔍 Escaneo completo en {target}...[/]")
+            console.print(f"[{ACCENT_ALT}]> Escaneo completo en {target}...[/]")
             result = full_scan(target)
             if result["success"]:
-                console.print(Panel(result["output"][:3000], title=f"Full Scan - {target}", border_style="#00FF88"))
+                console.print(Panel(result["output"][:3000], title=f"Full Scan - {target}", border_style=SUCCESS))
             return "Escaneo completo terminado."
         
         elif tool == "stealth":
-            console.print(f"[#FFD93D]🔍 Escaneo con evasion de IDS/Firewall en {target}...[/]")
-            console.print(f"[#FF4757]⚠️ Usando tecnicas: fragmented, slow, source-port manipulation...[/]")
+            console.print(f"[{ACCENT_ALT}]> Escaneo con evasion de IDS/Firewall en {target}...[/]")
+            console.print(f"[{ERROR}]! Usando tecnicas: fragmented, slow, source-port manipulation...[/]")
             result = execute_command(f"nmap -sS -T2 -f -g 53 --script=firewall-bypass {target}")
             if result["success"]:
-                console.print(Panel(result["output"][:3000], title=f"Stealth Scan - {target}", border_style="#FF6B35"))
+                console.print(Panel(result["output"][:3000], title=f"Stealth Scan - {target}", border_style=ACCENT))
             else:
                 result = execute_command(f"nmap -sS -T2 -f -p- {target}")
                 if result["success"]:
-                    console.print(Panel(result["output"][:3000], title=f"Stealth Scan - {target}", border_style="#FF6B35"))
+                    console.print(Panel(result["output"][:3000], title=f"Stealth Scan - {target}", border_style=ACCENT))
                 else:
-                    console.print(Panel(result.get("error", "Error"), title="Error", border_style="#FF4757"))
+                    console.print(Panel(result.get("error", "Error"), title="Error", border_style=ERROR))
             return "Escaneo sigiloso completado."
         
         elif tool == "os":
-            console.print(f"[#FFD93D]🔍 Deteccion de SO en {target}...[/]")
+            console.print(f"[{ACCENT_ALT}]> Deteccion de SO en {target}...[/]")
             result = os_detect(target)
             if result["success"]:
-                console.print(Panel(result["output"][:3000], title=f"OS Detect - {target}", border_style="#00FF88"))
+                console.print(Panel(result["output"][:3000], title=f"OS Detect - {target}", border_style=SUCCESS))
             else:
-                console.print(Panel(result.get("error", "Error"), title="Error", border_style="#FF4757"))
+                console.print(Panel(result.get("error", "Error"), title="Error", border_style=ERROR))
             return "Deteccion de SO completada."
         
         elif tool == "custom":
             ports = intent.get("ports")
             if ports:
-                console.print(f"[#FFD93D]🔍 Escaneo de puertos {ports} en {target}...[/]")
+                console.print(f"[{ACCENT_ALT}]> Escaneo de puertos {ports} en {target}...[/]")
                 result = execute_command(f"nmap -sV -p {ports} {target}")
             else:
-                console.print(f"[#FFD93D]🔍 Escaneo en {target}...[/]")
+                console.print(f"[{ACCENT_ALT}]> Escaneo en {target}...[/]")
                 result = quick_scan(target)
             if result["success"]:
-                console.print(Panel(result["output"][:3000], title=f"Scan - {target}", border_style="#00FF88"))
+                console.print(Panel(result["output"][:3000], title=f"Scan - {target}", border_style=SUCCESS))
             else:
-                console.print(Panel(result["error"][:1000], title="Error", border_style="#FF4757"))
+                console.print(Panel(result["error"][:1000], title="Error", border_style=ERROR))
             return "Escaneo completado."
         
         else:
-            console.print(f"[#FFD93D]🔍 Escaneo rapido en {target}...[/]")
+            console.print(f"[{ACCENT_ALT}]> Escaneo rapido en {target}...[/]")
             result = quick_scan(target)
             if result["success"]:
-                console.print(Panel(result["output"][:3000], title=f"Quick Scan - {target}", border_style="#00FF88"))
+                console.print(Panel(result["output"][:3000], title=f"Quick Scan - {target}", border_style=SUCCESS))
             else:
-                console.print(Panel(result["error"][:1000], title="Error", border_style="#FF4757"))
+                console.print(Panel(result["error"][:1000], title="Error", border_style=ERROR))
             return "Escaneo completado."
     
     elif action == "search":
         keyword = params.get("keyword") or target
         if keyword:
-            console.print(f"[#FFD93D]🔍 Buscando exploits para {keyword}...[/]")
+            console.print(f"[{ACCENT}]> Buscando exploits para {keyword}...[/]")
             result = search_exploits(keyword)
             if result["output"]:
-                console.print(Panel(result["output"][:2500], title=f"Exploits: {keyword}", border_style="#FF6B35"))
+                console.print(Panel(result["output"][:2500], title=f"Exploits: {keyword}", border_style=ACCENT))
             else:
-                console.print(Panel(result["error"][:1000] if result.get("error") else "No se encontraron resultados", title="Resultado", border_style="#FF4757"))
+                console.print(Panel(result["error"][:1000] if result.get("error") else "No se encontraron resultados", title="Resultado", border_style=ERROR))
             return "Busqueda completada."
     
     elif action == "autopwn" and target:
-        console.print(f"[#FF4757]⚡ Pentest automático en {target}...[/]")
-        console.print("[#FFD93D]1. Escaneo rápido...[/]")
+        console.print(f"[{ERROR}]* Pentest automatico en {target}...[/]")
+        console.print(f"[{ACCENT_ALT}]1. Escaneo rapido...[/]")
         scan_result = quick_scan(target)
         
-        console.print("[#FFD93D]2. Escaneo de vulnerabilidades...[/]")
+        console.print(f"[{ACCENT_ALT}]2. Escaneo de vulnerabilidades...[/]")
         vuln_result = vuln_scan(target)
         
-        console.print("[#FFD93D]3. Escaneo web...[/]")
+        console.print(f"[{ACCENT_ALT}]3. Escaneo web...[/]")
         web_result = web_scan(target)
         
-        console.print("[#FFD93D]4. Escaneo de directorios...[/]")
+        console.print(f"[{ACCENT_ALT}]4. Escaneo de directorios...[/]")
         dir_result = dir_scan(target)
         
         all_output = f"Nmap:\n{scan_result.get('output', '')}\n\nVuln:\n{vuln_result.get('output', '')}\n\nDir:\n{dir_result.get('output', '')}"
         report_path = create_quick_report(target, {"output": all_output}, "autopwn")
-        console.print(f"[#00FF88]✓ Reporte: {report_path}[/]")
-        return f"Pentest automático completado. Reporte en: {report_path}"
+        console.print(f"[{SUCCESS}]OK Reporte: {report_path}[/]")
+        return f"Pentest automatico completado. Reporte en: {report_path}"
     
     elif action == "execute" and target:
-        console.print(f"[#FFD93D]⚡ Ejecutando: {target}[/]")
+        console.print(f"[{ACCENT_ALT}]> Ejecutando: {target}[/]")
         result = execute_command(target)
         if result["output"]:
-            console.print(Panel(result["output"][:2000], title="Resultado", border_style="#00FF88"))
+            console.print(Panel(result["output"][:2000], title="Resultado", border_style=SUCCESS))
         if result["error"]:
-            console.print(Panel(result["error"][:1000], title="Error", border_style="#FF4757"))
-        return f"Código: {result['returncode']}"
+            console.print(Panel(result["error"][:1000], title="Error", border_style=ERROR))
+        return f"Codigo: {result['returncode']}"
     
     elif action == "generate":
-        console.print("[#FFD93D]⚡ Generando código...[/]")
+        console.print(f"[{ACCENT_ALT}]> Generando codigo...[/]")
         params = intent.get("params", {})
         code_type = params.get("type", "script")
         code_prompt = f"Genera {code_type} para: {target or params.get('keyword', '')}"
@@ -523,10 +532,10 @@ def auto_execute(intent: Dict) -> Optional[str]:
     
     elif action == "report":
         if target:
-            console.print(f"[#FFD93D]📄 Generando reporte para {target}...[/]")
+            console.print(f"[{ACCENT_ALT}]> Generando reporte para {target}...[/]")
             result = quick_scan(target)
             report_path = create_quick_report(target, result, "nmap")
-            console.print(f"[#00FF88]✓ Reporte: {report_path}[/]")
+            console.print(f"[{SUCCESS}]OK Reporte: {report_path}[/]")
             return f"Reporte generado: {report_path}"
         else:
             return "Especifica un objetivo para el reporte. Ej: 'genera reporte de 192.168.1.1'"
@@ -537,19 +546,19 @@ def auto_execute(intent: Dict) -> Optional[str]:
             return "No hay archivos generados."
         for cat, file_list in files.items():
             if file_list:
-                console.print(f"\n[#FF6B35]{cat.upper()}:[/]")
+                console.print(f"\n[{ACCENT}]{cat.upper()}:[/]")
                 for f in file_list:
                     console.print(f"  {f['name']} ({f['size']} bytes)")
         return None
     
     elif action == "analyze":
         if target:
-            console.print(f"[#FFD93D]🔍 Analizando {target}...[/]")
+            console.print(f"[{ACCENT}]> Analizando {target}...[/]")
             result = vuln_scan(target)
             if result["output"]:
-                console.print(Panel(result["output"][:2000], title=f"Análisis - {target}", border_style="#FF6B35"))
-            return "Análisis completado."
-        return "Especifica qué analizar."
+                console.print(Panel(result["output"][:2000], title=f"Analisis - {target}", border_style=ACCENT))
+            return "Analisis completado."
+        return "Especifica que analizar."
     
     return None
 
@@ -669,25 +678,49 @@ def show_help():
     console.print(help_text)
 
 
+def _build_command_menu() -> str:
+    """Build a modern command menu using Rich-compatible formatting."""
+    return (
+        f"[bold {CAT_SCAN}]SCANS          [/][bold {CAT_GENERATE}]GENERATION      [/][bold {CAT_ENUM}]ENUMERATION     [/][bold {CAT_UTILS}]UTILS[/]\n"
+        f"{'─' * 16}  {'─' * 16}  {'─' * 16}  {'─' * 11}\n"
+        f"[{CAT_SCAN}]/scan <tgt>    [/][{CAT_GENERATE}]/code <desc>    [/][{CAT_ENUM}]/enum <tgt>      [/][{CAT_UTILS}]/tools[/]\n"
+        f"[{CAT_SCAN}]/vuln <tgt>    [/][{CAT_GENERATE}]/shell <type>   [/][{CAT_ENUM}]/dns <dom>       [/][{CAT_UTILS}]/run <cmd>[/]\n"
+        f"[{CAT_SCAN}]/web <tgt>     [/][{CAT_GENERATE}]/payload <tgt>  [/][{CAT_ENUM}]/subdomain <d>   [/][{CAT_UTILS}]/search <q>[/]\n"
+        f"[{CAT_SCAN}]/full <tgt>    [/][{CAT_GENERATE}]/script <desc>  [/][{CAT_ENUM}]/autopwn <tgt>   [/][{CAT_UTILS}]/report <t>[/]\n"
+        f"[{CAT_SCAN}]/stealth <tgt> [/][{CAT_GENERATE}]                [/][{CAT_ENUM}]/shodan <ip>     [/][{CAT_UTILS}]/cve <id>[/]\n"
+        f"{' ' * 16}  {' ' * 16}  [{CAT_ENUM}]/virus <dom>    [/][{CAT_UTILS}]/skills[/]\n"
+        f"{' ' * 16}  {' ' * 16}  [{CAT_ENUM}]/hunter <dom>   [/][{CAT_UTILS}]/workflows[/]\n"
+        f"{' ' * 16}  {' ' * 16}  [{CAT_ENUM}]/crt <domain>   [/]\n"
+        f"\n[dim]Type /help for full command list - /modes to switch - /exit to quit[/]"
+    )
+
+
 def process_command(user_input: str) -> Optional[str]:
     parts = user_input.split(None, 1)
     cmd = parts[0].lower()
     args = parts[1] if len(parts) > 1 else ""
     
     if cmd == "/help":
-        show_help()
+        console.print(Panel(
+            _build_command_menu(),
+            title=f"[bold {SECONDARY}]Command Reference[/]",
+            border_style=SECONDARY,
+            box=box.ROUNDED,
+            padding=(0, 2)
+        ))
         return None
     elif cmd == "/mode":
         if args:
             mode = args.lower()
             if set_mode(mode):
                 mode_info = get_mode_info(mode)
-                console.print(f"[bold]{mode_info['icon']} Modo cambiado a: {mode_info['name']}[/]")
+                mode_color = mode_info.get('color', '#808080')
+                console.print(f"[bold {mode_color}]{mode_info['icon']} Modo cambiado a: {mode_info['name']}[/]")
                 console.print(f"{mode_info['description']}")
                 print_banner()
                 return None
             else:
-                console.print("[red]Modo no válido. Modos disponibles:[/]")
+                console.print("[red]Modo no valido. Modos disponibles:[/]")
                 for m, info in MODES.items():
                     console.print(f"  {info['icon']} {m:12} - {info['name']}")
                 return None
@@ -697,7 +730,7 @@ def process_command(user_input: str) -> Optional[str]:
             console.print(f"[bold]Modo actual: {mode_info['icon']} {mode_info['name']}[/]")
             console.print(f"\n[bold]Modos disponibles:[/]")
             for m, info in MODES.items():
-                marker = "→" if m == current else " "
+                marker = ">" if m == current else " "
                 console.print(f"  {marker} {m:12} - {info['icon']} {info['name']}")
             return None
     elif cmd == "/modes":
@@ -720,11 +753,11 @@ def process_command(user_input: str) -> Optional[str]:
                 global ollama
                 os.environ["DEFAULT_BACKEND"] = args.lower()
                 ollama = get_client(args.lower())
-                console.print(f"[green]✓ Backend cambiado a: {args.lower()}[/]")
+                console.print(f"[green]OK Backend cambiado a: {args.lower()}[/]")
                 if ollama.check_connection():
-                    console.print(f"[green]✓ Conexión exitosa[/]")
+                    console.print(f"[green]OK Conexion exitosa[/]")
                 else:
-                    console.print(f"[red]✗ No se pudo conectar al backend[/]")
+                    console.print(f"[red]X No se pudo conectar al backend[/]")
                 return None
             else:
                 console.print(f"[yellow]Backends disponibles: {', '.join(backends)}[/]")
@@ -739,7 +772,7 @@ def process_command(user_input: str) -> Optional[str]:
         files = list_files("all")
         for cat, file_list in files.items():
             if file_list:
-                console.print(f"\n[#FF6B35]{cat.upper()}:[/]")
+                console.print(f"\n[{ACCENT}]{cat.upper()}:[/]")
                 for f in file_list:
                     console.print(f"  {f['name']} ({f['size']} bytes)")
         return None
@@ -750,27 +783,27 @@ def process_command(user_input: str) -> Optional[str]:
         print_banner()
         return None
     elif cmd in ["/exit", "/quit"]:
-        console.print("[#FF6B35]¡Hasta luego! 👋[/]")
+        console.print(f"[{ACCENT}]Hasta luego![/]")
         sys.exit(0)
     elif cmd in ["/code", "/genera", "/script", "/create"]:
         if args:
-            console.print(f"[#FFD93D]⚡ Generando código: {args}...[/]")
+            console.print(f"[{ACCENT_ALT}]> Generando codigo: {args}...[/]")
             return f"generate_code|{args}"
-        console.print("[#FFD93D]⚡ Generando código...[/]")
-        return "generate_code|ayúdame con scripts de pentesting"
+        console.print(f"[{ACCENT_ALT}]> Generando codigo...[/]")
+        return "generate_code|ayudame con scripts de pentesting"
     
     elif cmd in ["/shell", "/shells"]:
         if args:
-            console.print(f"[#FFD93D]⚡ Generando shell: {args}...[/]")
+            console.print(f"[{ACCENT_ALT}]> Generando shell: {args}...[/]")
             return f"generate_code|genera {args} shell para pentesting"
-        console.print("[#FFD93D]⚡ Generando shell...[/]")
+        console.print(f"[{ACCENT_ALT}]> Generando shell...[/]")
         return "generate_code|genera reverse shell en python"
     
     elif cmd in ["/payload", "/payloads"]:
         if args:
-            console.print(f"[#FFD93D]⚡ Generando payload: {args}...[/]")
+            console.print(f"[{ACCENT_ALT}]> Generando payload: {args}...[/]")
             return f"generate_code|genera payload {args} para pentesting"
-        console.print("[#FFD93D]⚡ Generando payload...[/]")
+        console.print(f"[{ACCENT_ALT}]> Generando payload...[/]")
         return "generate_code|genera un payload para linux"
     
     elif cmd in ["/scan", "/vuln", "/web", "/dir", "/full", "/stealth", "/os"]:
@@ -787,54 +820,54 @@ def process_command(user_input: str) -> Optional[str]:
     
     elif cmd == "/dns":
         if args:
-            console.print(f"[#FFD93D]🔍 Enumeracion DNS en {args}...[/]")
+            console.print(f"[{ACCENT}]> Enumeracion DNS en {args}...[/]")
             result = dns_enum(args)
             if result["success"]:
-                console.print(Panel(result["output"][:3000], title=f"DNS Enum - {args}", border_style="#00FF88"))
+                console.print(Panel(result["output"][:3000], title=f"DNS Enum - {args}", border_style=SUCCESS))
             else:
-                console.print(Panel(result.get("error", "Error"), title="Error", border_style="#FF4757"))
+                console.print(Panel(result.get("error", "Error"), title="Error", border_style=ERROR))
             return None
         return "Uso: /dns <domain> (ej: /dns ejemplo.com)"
     
     elif cmd == "/subdomain":
         if args:
-            console.print(f"[#FFD93D]🔍 Buscando subdominios en {args}...[/]")
+            console.print(f"[{ACCENT}]> Buscando subdominios en {args}...[/]")
             result = subdomain_enum(args)
             if result["success"]:
-                console.print(Panel(result["output"][:3000], title=f"Subdomains - {args}", border_style="#00FF88"))
+                console.print(Panel(result["output"][:3000], title=f"Subdomains - {args}", border_style=SUCCESS))
             else:
-                console.print(Panel(result.get("error", "Error"), title="Error", border_style="#FF4757"))
+                console.print(Panel(result.get("error", "Error"), title="Error", border_style=ERROR))
             return None
         return "Uso: /subdomain <domain> (ej: /subdomain ejemplo.com)"
     
     elif cmd == "/run":
         if args:
-            console.print(f"[#FFD93D]⚡ Ejecutando: {args}[/]")
+            console.print(f"[{ACCENT_ALT}]> Ejecutando: {args}[/]")
             result = execute_command(args)
             if result["output"]:
-                console.print(Panel(result["output"][:2500], title="Output", border_style="#00FF88"))
+                console.print(Panel(result["output"][:2500], title="Output", border_style=SUCCESS))
             if result.get("error") and result["returncode"] != 0:
-                console.print(Panel(result["error"][:1000], title="Error", border_style="#FF4757"))
+                console.print(Panel(result["error"][:1000], title="Error", border_style=ERROR))
             return f"Codigo: {result['returncode']}"
         return "Uso: /run <comando>"
     
     elif cmd == "/search" or cmd == "/exploit":
         if args:
-            console.print(f"[#FFD93D]🔍 Buscando exploits: {args}[/]")
+            console.print(f"[{ACCENT}]> Buscando exploits: {args}[/]")
             result = search_exploits(args)
             if result["success"]:
-                console.print(Panel(result["output"][:3000], title=f"Exploits for: {args}", border_style="#FF6B35"))
+                console.print(Panel(result["output"][:3000], title=f"Exploits for: {args}", border_style=ACCENT))
             else:
-                console.print(Panel(result.get("error", "No se encontraron resultados"), title="Error", border_style="#FF4757"))
+                console.print(Panel(result.get("error", "No se encontraron resultados"), title="Error", border_style=ERROR))
             return None
         return "Uso: /search <term>"
     
     elif cmd == "/report":
         if args:
-            console.print(f"[#FFD93D]⚡ Generando reporte de {args}...[/]")
+            console.print(f"[{ACCENT_ALT}]> Generando reporte de {args}...[/]")
             result = quick_scan(args)
             report_path = create_quick_report(args, result, "nmap")
-            console.print(f"[#00FF88]✓ Reporte: {report_path}[/]")
+            console.print(f"[{SUCCESS}]OK Reporte: {report_path}[/]")
             return None
         return "Uso: /report <target>"
     
@@ -843,13 +876,13 @@ def process_command(user_input: str) -> Optional[str]:
             parts = args.split(None, 1)
             tool_name = parts[0]
             tool_args = parts[1] if len(parts) > 1 else ""
-            console.print(f"[#FFD93D]⚡ Ejecutando {tool_name}...[/]")
+            console.print(f"[{ACCENT_ALT}]> Ejecutando {tool_name}...[/]")
             from src.tools.pentest import run_tool
             result = run_tool(tool_name, tool_args)
             if result["success"]:
-                console.print(Panel(result["output"][:3000], title=f"{tool_name} Output", border_style="#00FF88"))
+                console.print(Panel(result["output"][:3000], title=f"{tool_name} Output", border_style=SUCCESS))
             else:
-                console.print(Panel(result.get("error", "Error ejecutando"), title="Error", border_style="#FF4757"))
+                console.print(Panel(result.get("error", "Error ejecutando"), title="Error", border_style=ERROR))
             return None
         return "Uso: /exec <tool> <args> (ej: /exec nmap -sV 192.168.1.1)"
     
@@ -858,73 +891,73 @@ def process_command(user_input: str) -> Optional[str]:
         tools = get_available_tools()
         if tools:
             for cat, tool_list in tools.items():
-                console.print(f"[#FF6B35]{cat.upper()}:[/] {', '.join(tool_list)}")
+                console.print(f"[{ACCENT}]{cat.upper()}:[/] {', '.join(tool_list)}")
         else:
             console.print("[yellow]No hay herramientas disponibles (instala Kali Linux o las herramientas manualmente)[/]")
         return None
     
     elif cmd == "/shodan":
         if args:
-            console.print(f"[#FFD93D]🔍 Consultando Shodan: {args}[/]")
+            console.print(f"[{ACCENT}]> Consultando Shodan: {args}[/]")
             result = shodan_scan(args)
             if result["success"]:
-                console.print(Panel(result["output"], title=f"Shodan - {args}", border_style="#00FF88"))
+                console.print(Panel(result["output"], title=f"Shodan - {args}", border_style=SUCCESS))
             else:
-                console.print(Panel(result["error"], title="Error", border_style="#FF4757"))
+                console.print(Panel(result["error"], title="Error", border_style=ERROR))
             return None
         return "Uso: /shodan <IP>"
     
     elif cmd == "/virus":
         if args:
-            console.print(f"[#FFD93D]🔍 Escaneando en VirusTotal: {args}[/]")
+            console.print(f"[{ACCENT}]> Escaneando en VirusTotal: {args}[/]")
             result = virustotal_scan(args)
             if result["success"]:
-                console.print(Panel(result["output"], title=f"VirusTotal - {args}", border_style="#00FF88"))
+                console.print(Panel(result["output"], title=f"VirusTotal - {args}", border_style=SUCCESS))
             else:
-                console.print(Panel(result["error"], title="Error", border_style="#FF4757"))
+                console.print(Panel(result["error"], title="Error", border_style=ERROR))
             return None
         return "Uso: /virus <domain>"
     
     elif cmd == "/hunter":
         if args:
-            console.print(f"[#FFD93D]🔍 Buscando emails: {args}[/]")
+            console.print(f"[{ACCENT}]> Buscando emails: {args}[/]")
             result = hunter_lookup(args)
             if result["success"]:
-                console.print(Panel(result["output"], title=f"Hunter - {args}", border_style="#00FF88"))
+                console.print(Panel(result["output"], title=f"Hunter - {args}", border_style=SUCCESS))
             else:
-                console.print(Panel(result["error"], title="Error", border_style="#FF4757"))
+                console.print(Panel(result["error"], title="Error", border_style=ERROR))
             return None
         return "Uso: /hunter <domain>"
     
     elif cmd == "/crt":
         if args:
-            console.print(f"[#FFD93D]🔍 Buscando certificados: {args}[/]")
+            console.print(f"[{ACCENT}]> Buscando certificados: {args}[/]")
             result = crt_sh_lookup(args)
             if result["success"]:
-                console.print(Panel(result["output"], title=f"CRT.SH - {args}", border_style="#00FF88"))
+                console.print(Panel(result["output"], title=f"CRT.SH - {args}", border_style=SUCCESS))
             else:
-                console.print(Panel(result["error"], title="Error", border_style="#FF4757"))
+                console.print(Panel(result["error"], title="Error", border_style=ERROR))
             return None
         return "Uso: /crt <domain>"
     
     elif cmd == "/whois":
         if args:
-            console.print(f"[#FFD93D]🔍 Whois: {args}[/]")
+            console.print(f"[{ACCENT}]> Whois: {args}[/]")
             result = whois_lookup(args)
             if result["success"]:
-                console.print(Panel(result["output"], title=f"Whois - {args}", border_style="#00FF88"))
+                console.print(Panel(result["output"], title=f"Whois - {args}", border_style=SUCCESS))
             else:
-                console.print(Panel(result["error"], title="Error", border_style="#FF4757"))
+                console.print(Panel(result["error"], title="Error", border_style=ERROR))
             return None
         return "Uso: /whois <domain>"
     
     elif cmd == "/history":
         hist = load_history()
         if hist:
-            console.print(f"[#FF6B35]Historial ({len(hist)} mensajes):[/]")
+            console.print(f"[{ACCENT}]Historial ({len(hist)} mensajes):[/]")
             for msg in hist[-10:]:
-                role = "👤" if msg["role"] == "user" else "🤖"
-                console.print(f"{role} {msg['role']}: {msg['content'][:50]}...")
+                role = "U:" if msg["role"] == "user" else "A:"
+                console.print(f"  {role} {msg['role']}: {msg['content'][:50]}...")
         else:
             console.print("[yellow]No hay historial[/]")
         return None
@@ -937,11 +970,11 @@ def process_command(user_input: str) -> Optional[str]:
     elif cmd == "/session":
         if args:
             session_name = create_session(args)
-            console.print(f"[green]✓ Sesión creada: {session_name}[/]")
+            console.print(f"[green]OK Sesion creada: {session_name}[/]")
             return f"Usa /resume {session_name} para continuar"
         sessions = list_sessions()
         if sessions:
-            console.print(f"[#FF6B35]Sesiones guardadas ({len(sessions)}):[/]")
+            console.print(f"[{ACCENT}]Sesiones guardadas ({len(sessions)}):[/]")
             for s in sessions[:10]:
                 console.print(f"  {s['name']} - {s.get('created', '')[:10]} - {len(s.get('targets', []))} targets")
         else:
@@ -952,10 +985,10 @@ def process_command(user_input: str) -> Optional[str]:
         if args:
             session_data = load_session(args)
             if session_data:
-                console.print(f"[green]✓ Sesión cargada: {args}[/]")
+                console.print(f"[green]OK Sesion cargada: {args}[/]")
                 console.print(f"Targets: {', '.join(session_data.get('targets', []))}")
             else:
-                console.print(f"[red]Sesión no encontrada: {args}[/]")
+                console.print(f"[red]Sesion no encontrada: {args}[/]")
         else:
             console.print("[yellow]Uso: /resume <nombre>[/]")
         return None
@@ -966,7 +999,7 @@ def process_command(user_input: str) -> Optional[str]:
             if not cve_id.startswith("CVE-"):
                 results = search_by_keyword(args)
                 if results:
-                    console.print(f"[#FF6B35]Resultados para '{args}' ({len(results)}):[/]")
+                    console.print(f"[{ACCENT}]Resultados para '{args}' ({len(results)}):[/]")
                     for cve in results[:10]:
                         console.print(f"  {cve['cveID']} - {cve['vendorProject']} - {cve['product']}")
                 else:
@@ -974,26 +1007,26 @@ def process_command(user_input: str) -> Optional[str]:
             else:
                 cve = search_cve(cve_id)
                 if cve:
-                    console.print(Panel(format_cve(cve), title=f"CVE: {cve_id}", border_style="#FF6B35"))
+                    console.print(Panel(format_cve(cve), title=f"CVE: {cve_id}", border_style=ACCENT))
                 else:
                     console.print(f"[yellow]CVE no encontrado: {cve_id}[/]")
         else:
             stats = get_stats()
-            console.print(f"[#FF6B35]CISA KEV Database:[/]")
+            console.print(f"[{ACCENT}]CISA KEV Database:[/]")
             console.print(f"  Total CVEs: {stats.get('total', 0)}")
         return None
     
     elif cmd == "/cveupdate":
-        console.print("[#FFD93D]Descargando CISA KEV...[/]")
+        console.print(f"[{ACCENT_ALT}]Descargando CISA KEV...[/]")
         if download_cisa_kev(force=True):
-            console.print("[green]✓ Base de datos CVE actualizada[/]")
+            console.print("[green]OK Base de datos CVE actualizada[/]")
         else:
-            console.print("[red]✗ Error al descargar[/]")
+            console.print("[red]X Error al descargar[/]")
         return None
     
     elif cmd == "/recent":
         exploits = get_recent_exploits(30)
-        console.print(f"[#FF6B35]Explotados recientemente (últimos 30 días):[/]")
+        console.print(f"[{ACCENT}]Explotados recientemente (ultimos 30 dias):[/]")
         for cve in exploits[:10]:
             console.print(f"  {cve['cveID']} - {cve['dateAdded']} - {cve['vendorProject']}")
         return None
@@ -1005,10 +1038,10 @@ def process_command(user_input: str) -> Optional[str]:
             report_path = generate_report(
                 target=args,
                 findings=[],
-                assessment_type="Escaneo automático",
+                assessment_type="Escaneo automatico",
                 format="html"
             )
-            console.print(f"[#00FF88]✓ Reporte HTML: {report_path}[/]")
+            console.print(f"[{SUCCESS}]OK Reporte HTML: {report_path}[/]")
         else:
             console.print("[yellow]Uso: /reporthtml <target>[/]")
         return None
@@ -1017,10 +1050,10 @@ def process_command(user_input: str) -> Optional[str]:
         if args:
             framework = args.lower()
             if framework not in ["cis", "owasp", "pci", "nist"]:
-                console.print("[yellow]Framework válido: cis, owasp, pci, nist[/]")
+                console.print("[yellow]Framework valido: cis, owasp, pci, nist[/]")
                 return None
             from src.tools.compliance import COMPLIANCE_CHECKS
-            console.print(f"[#FFD93D]Verificando compliance {framework.upper()}...[/]")
+            console.print(f"[{ACCENT_ALT}]Verificando compliance {framework.upper()}...[/]")
             framework_data = COMPLIANCE_CHECKS.get(framework, {})
             if framework == "cis":
                 checks = framework_data.get("linux", []) + framework_data.get("windows", [])
@@ -1028,7 +1061,7 @@ def process_command(user_input: str) -> Optional[str]:
                 checks = framework_data.get("requirements", []) or framework_data.get("controls", []) or framework_data.get("headers", []) or []
             for check in checks[:15]:
                 console.print(f"  [{check.get('severity', '?')[:3].upper():3}] {check.get('id', '')} - {check.get('title', '')[:50]}")
-            console.print(f"[#00FF88]✓ Total checks: {len(checks)}[/]")
+            console.print(f"[{SUCCESS}]OK Total checks: {len(checks)}[/]")
         else:
             console.print("[yellow]Uso: /compliance <cis|owasp|pci|nist>[/]")
             console.print("[cyan]Marcos de compliance disponibles:[/]")
@@ -1042,7 +1075,7 @@ def process_command(user_input: str) -> Optional[str]:
         if args:
             ti = ThreatIntelligence()
             iocs = ti.extract_iocs(args)
-            console.print(f"[#FF6B35]IOCs extraídos:[/]")
+            console.print(f"[{ACCENT}]IOCs extraidos:[/]")
             for ioc_type, values in iocs.items():
                 if values:
                     console.print(f"  [{ioc_type.upper()}] {', '.join(values[:5])}")
@@ -1057,7 +1090,7 @@ def process_command(user_input: str) -> Optional[str]:
             classification = ti.classify_threat(args)
             if classification:
                 c = classification[0] if isinstance(classification, list) else classification
-                console.print(Panel(f"[bold]Tipo:[/] {c.get('type', 'unknown')}\n[bold]Categoría:[/] {c.get('category', 'N/A')}\n[bold]Severidad:[/] {c.get('severity', 'N/A')}", title=f"Clasificación: {args}", border_style="#FF6B35"))
+                console.print(Panel(f"[bold]Tipo:[/] {c.get('type', 'unknown')}\n[bold]Categoria:[/] {c.get('category', 'N/A')}\n[bold]Severidad:[/] {c.get('severity', 'N/A')}", title=f"Clasificacion: {args}", border_style=ACCENT))
             else:
                 console.print("[yellow]No se pudo clasificar[/]")
         else:
@@ -1069,9 +1102,9 @@ def process_command(user_input: str) -> Optional[str]:
         if args:
             ir = IncidentResponse()
             incident = ir.create_incident(f"Incident: {args}", args, f"Incident created via CLI")
-            console.print(Panel(f"[bold]ID:[/] {incident.id}\n[bold]Tipo:[/] {incident.incident_type}\n[bold]Severidad:[/] {incident.severity}", title="Nuevo Incidente", border_style="#FF4757"))
+            console.print(Panel(f"[bold]ID:[/] {incident.id}\n[bold]Tipo:[/] {incident.incident_type}\n[bold]Severidad:[/] {incident.severity}", title="Nuevo Incidente", border_style=ERROR))
             steps = ir.get_response_steps(args)
-            console.print(f"[#FFD93D]Pasos de respuesta ({len(steps)}):[/]")
+            console.print(f"[{ACCENT_ALT}]Pasos de respuesta ({len(steps)}):[/]")
             for i, step in enumerate(steps, 1):
                 console.print(f"  {i}. {step}")
         else:
@@ -1085,7 +1118,7 @@ def process_command(user_input: str) -> Optional[str]:
         if args:
             ir = IncidentResponse()
             steps = ir.get_response_steps(args)
-            console.print(f"[#FF6B35]Pasos de respuesta para {args}:[/]")
+            console.print(f"[{ACCENT}]Pasos de respuesta para {args}:[/]")
             for i, step in enumerate(steps, 1):
                 console.print(f"  {i}. {step}")
         else:
@@ -1096,7 +1129,7 @@ def process_command(user_input: str) -> Optional[str]:
         if args:
             try:
                 import requests
-                console.print(f"[#FFD93D]Verificando headers en {args}...[/]")
+                console.print(f"[{ACCENT_ALT}]Verificando headers en {args}...[/]")
                 if not args.startswith("http"):
                     args = "https://" + args
                 resp = requests.head(args, timeout=10)
@@ -1105,8 +1138,8 @@ def process_command(user_input: str) -> Optional[str]:
                 results = checker.check_web_headers(headers)
                 for r in results:
                     status = r.get("status", "unknown")
-                    icon = "[#00FF88]✓[/]" if status == "pass" else "[#FF4757]✗[/]" if status == "fail" else "[#FFD93D]?[/]"
-                    console.print(f"  {icon} {r.get('title', 'N/A')[:50]}")
+                    mark = f"[{SUCCESS}]OK[/]" if status == "pass" else f"[{ERROR}]X[/]" if status == "fail" else f"[{WARNING}]?[/]"
+                    console.print(f"  {mark} {r.get('title', 'N/A')[:50]}")
             except Exception as e:
                 console.print(f"[red]Error: {str(e)}[/]")
         else:
@@ -1115,7 +1148,7 @@ def process_command(user_input: str) -> Optional[str]:
     
     elif cmd == "/vuln-db":
         from src.tools.vuln_db import VULNERABILITY_DATABASE
-        console.print(f"[#FF6B35]Vulnerability Database ({len(VULNERABILITY_DATABASE)} entries):[/]")
+        console.print(f"[{ACCENT}]Vulnerability Database ({len(VULNERABILITY_DATABASE)} entries):[/]")
         for cve_id, vuln in list(VULNERABILITY_DATABASE.items())[:20]:
             console.print(f"  [{vuln.get('severity', '?')[:3].upper():3}] {cve_id}: {vuln.get('name', 'N/A')} (CVSS: {vuln.get('cvss', 0)})")
         console.print(f"\n[yellow]Total: {len(VULNERABILITY_DATABASE)} vulnerabilidades[/]")
@@ -1126,7 +1159,7 @@ def process_command(user_input: str) -> Optional[str]:
             ir = IncidentResponse()
             sev = args.lower()
             contact = ir.get_severity_info(sev)
-            console.print(f"[#FF4757]Escalando a severidad: {sev}[/]")
+            console.print(f"[{ERROR}]Escalando a severidad: {sev}[/]")
             console.print(f"[bold]Tiempo de respuesta:[/] {contact.get('response_time', 'N/A')}")
             console.print(f"[bold]Escalar a:[/] {contact.get('escalation', 'N/A')}")
         else:
@@ -1138,7 +1171,7 @@ def process_command(user_input: str) -> Optional[str]:
         metrics = SecurityMetrics()
         metrics.record_scan("cli")
         metrics.record_finding("high")
-        console.print("[#FF6B35]Security Metrics:[/]")
+        console.print(f"[{ACCENT}]Security Metrics:[/]")
         console.print("  Total scans: 1")
         console.print("  Findings: high=1, medium=0, low=0")
         console.print(f"  Output: {get_output_dir()}")
@@ -1148,7 +1181,7 @@ def process_command(user_input: str) -> Optional[str]:
         if args:
             ti = ThreatIntelligence()
             iocs = ti.extract_iocs(args)
-            console.print(f"[#FF6B35]IOCs extraídos:[/]")
+            console.print(f"[{ACCENT}]IOCs extraidos:[/]")
             for ioc_type, values in iocs.items():
                 if values:
                     console.print(f"  [{ioc_type.upper()}] {', '.join(values[:5])}")
@@ -1163,7 +1196,7 @@ def process_command(user_input: str) -> Optional[str]:
             classification = ti.classify_threat(args)
             if classification:
                 c = classification[0] if isinstance(classification, list) else classification
-                console.print(Panel(f"[bold]Tipo:[/] {c.get('type', 'unknown')}\n[bold]Categoría:[/] {c.get('category', 'N/A')}\n[bold]Severidad:[/] {c.get('severity', 'N/A')}", title=f"Clasificación: {args}", border_style="#FF6B35"))
+                console.print(Panel(f"[bold]Tipo:[/] {c.get('type', 'unknown')}\n[bold]Categoria:[/] {c.get('category', 'N/A')}\n[bold]Severidad:[/] {c.get('severity', 'N/A')}", title=f"Clasificacion: {args}", border_style=ACCENT))
             else:
                 console.print("[yellow]No se pudo clasificar[/]")
         else:
@@ -1175,9 +1208,9 @@ def process_command(user_input: str) -> Optional[str]:
         if args:
             ir = IncidentResponse()
             incident = ir.create_incident(f"Incident: {args}", args, f"Incident created via CLI")
-            console.print(Panel(f"[bold]ID:[/] {incident.id}\n[bold]Tipo:[/] {incident.incident_type}\n[bold]Severidad:[/] {incident.severity}", title="Nuevo Incidente", border_style="#FF4757"))
+            console.print(Panel(f"[bold]ID:[/] {incident.id}\n[bold]Tipo:[/] {incident.incident_type}\n[bold]Severidad:[/] {incident.severity}", title="Nuevo Incidente", border_style=ERROR))
             steps = ir.get_response_steps(args)
-            console.print(f"[#FFD93D]Pasos de respuesta ({len(steps)}):[/]")
+            console.print(f"[{ACCENT_ALT}]Pasos de respuesta ({len(steps)}):[/]")
             for i, step in enumerate(steps, 1):
                 console.print(f"  {i}. {step}")
         else:
@@ -1191,7 +1224,7 @@ def process_command(user_input: str) -> Optional[str]:
         if args:
             ir = IncidentResponse()
             steps = ir.get_response_steps(args)
-            console.print(f"[#FF6B35]Pasos de respuesta para {args}:[/]")
+            console.print(f"[{ACCENT}]Pasos de respuesta para {args}:[/]")
             for i, step in enumerate(steps, 1):
                 console.print(f"  {i}. {step}")
         else:
@@ -1202,7 +1235,7 @@ def process_command(user_input: str) -> Optional[str]:
         if args:
             try:
                 import requests
-                console.print(f"[#FFD93D]Verificando headers en {args}...[/]")
+                console.print(f"[{ACCENT_ALT}]Verificando headers en {args}...[/]")
                 if not args.startswith("http"):
                     args = "https://" + args
                 resp = requests.head(args, timeout=10)
@@ -1211,8 +1244,8 @@ def process_command(user_input: str) -> Optional[str]:
                 results = checker.check_web_headers(headers)
                 for r in results:
                     status = r.get("status", "unknown")
-                    icon = "[#00FF88]✓[/]" if status == "pass" else "[#FF4757]✗[/]" if status == "fail" else "[#FFD93D]?[/]"
-                    console.print(f"  {icon} {r.get('title', 'N/A')[:50]}")
+                    mark = f"[{SUCCESS}]OK[/]" if status == "pass" else f"[{ERROR}]X[/]" if status == "fail" else f"[{WARNING}]?[/]"
+                    console.print(f"  {mark} {r.get('title', 'N/A')[:50]}")
             except Exception as e:
                 console.print(f"[red]Error: {str(e)}[/]")
         else:
@@ -1221,7 +1254,7 @@ def process_command(user_input: str) -> Optional[str]:
     
     elif cmd == "/vuln-db":
         from src.tools.vuln_db import VULNERABILITY_DATABASE
-        console.print(f"[#FF6B35]Vulnerability Database ({len(VULNERABILITY_DATABASE)} entries):[/]")
+        console.print(f"[{ACCENT}]Vulnerability Database ({len(VULNERABILITY_DATABASE)} entries):[/]")
         for cve_id, vuln in list(VULNERABILITY_DATABASE.items())[:20]:
             console.print(f"  [{vuln.get('severity', '?')[:3].upper():3}] {cve_id}: {vuln.get('name', 'N/A')} (CVSS: {vuln.get('cvss', 0)})")
         console.print(f"\n[yellow]Total: {len(VULNERABILITY_DATABASE)} vulnerabilidades[/]")
@@ -1232,7 +1265,7 @@ def process_command(user_input: str) -> Optional[str]:
             ir = IncidentResponse()
             sev = args.lower()
             contact = ir.get_severity_info(sev)
-            console.print(f"[#FF4757]Escalando a severidad: {sev}[/]")
+            console.print(f"[{ERROR}]Escalando a severidad: {sev}[/]")
             console.print(f"[bold]Tiempo de respuesta:[/] {contact.get('response_time', 'N/A')}")
             console.print(f"[bold]Escalar a:[/] {contact.get('escalation', 'N/A')}")
         else:
@@ -1244,7 +1277,7 @@ def process_command(user_input: str) -> Optional[str]:
         metrics = SecurityMetrics()
         metrics.record_scan("test")
         metrics.record_finding("high")
-        console.print("[#FF6B35]Security Metrics Dashboard:[/]")
+        console.print(f"[{ACCENT}]Security Metrics Dashboard:[/]")
         console.print("  Scans: 1")
         console.print("  Findings by severity: high=1, medium=0, low=0")
         console.print(f"  Output: {get_output_dir()}")
@@ -1337,10 +1370,10 @@ Tools: {len(status['available_tools'])}""",
                     ))
                     return None
         console.print(Panel(
-            f"[#808080]Available Skills ({len(skills)}):[/]\n\n" + 
-            "\n".join([f"  {s['icon']} {s['name']:15} - {s['description'][:40]}" 
-                      for s in [{"icon": "📦", **s} for s in skills]]),
-            title="[#808080]Skills[/]", border_style="#404040"
+            f"[{INFO}]Available Skills ({len(skills)}):[/]\n\n" + 
+            "\n".join([f"  [S] {s['name']:15} - {s['description'][:40]}" 
+                      for s in skills]),
+            title=f"[{INFO}]Skills[/]", border_style=TEXT_MUTED
         ))
         return None
     
@@ -1555,44 +1588,44 @@ def chat_with_ai(message: str, model: str) -> Optional[str]:
         else:
             result = quick_scan(target)
         if result["success"]:
-            console.print(Panel(result["output"][:3000], title=f"{tool.upper()} - {target}", border_style="#00FF88"))
+            console.print(Panel(result["output"][:3000], title=f"{tool.upper()} - {target}", border_style=SUCCESS))
         return None
     elif cmd_result and cmd_result.startswith("continue_autopwn|"):
         target = cmd_result.split("|")[1]
-        console.print(f"[#FF4757]⚡ Pentest automático en {target}...[/]")
+        console.print(f"[{ERROR}]* Pentest automatico en {target}...[/]")
         scan_result = quick_scan(target)
         vuln_result = vuln_scan(target)
         web_result = web_scan(target)
         all_output = f"Nmap:\n{scan_result.get('output', '')}\n\nVuln:\n{vuln_result.get('output', '')}"
         report_path = create_quick_report(target, {"output": all_output}, "autopwn")
-        console.print(f"[#00FF88]✓ Reporte: {report_path}[/]")
+        console.print(f"[{SUCCESS}]OK Reporte: {report_path}[/]")
         return f"Pentest completado. Reporte en: {report_path}"
     elif cmd_result and cmd_result.startswith("continue_fullpentest|"):
         target = cmd_result.split("|")[1]
-        console.print(f"[#FF4757]⚡ PENTEST COMPLETO en {target}...[/]")
+        console.print(f"[{ERROR}]* PENTEST COMPLETO en {target}...[/]")
         
-        console.print("[#FFD93D]1. Escaneo rapido...[/]")
+        console.print(f"[{ACCENT_ALT}]1. Escaneo rapido...[/]")
         scan_result = quick_scan(target)
         
-        console.print("[#FFD93D]2. Escaneo completo de puertos...[/]")
+        console.print(f"[{ACCENT_ALT}]2. Escaneo completo de puertos...[/]")
         full_result = full_scan(target)
         
-        console.print("[#FFD93D]3. Deteccion de SO...[/]")
+        console.print(f"[{ACCENT_ALT}]3. Deteccion de SO...[/]")
         os_result = os_detect(target)
         
-        console.print("[#FFD93D]4. Escaneo de vulnerabilidades...[/]")
+        console.print(f"[{ACCENT_ALT}]4. Escaneo de vulnerabilidades...[/]")
         vuln_result = vuln_scan(target)
         
-        console.print("[#FFD93D]5. Escaneo web...[/]")
+        console.print(f"[{ACCENT_ALT}]5. Escaneo web...[/]")
         web_result = web_scan(target)
         
-        console.print("[#FFD93D]6. Escaneo de directorios...[/]")
+        console.print(f"[{ACCENT_ALT}]6. Escaneo de directorios...[/]")
         dir_result = dir_scan(target)
         
-        console.print("[#FFD93D]7. Enumeracion DNS...[/]")
+        console.print(f"[{ACCENT_ALT}]7. Enumeracion DNS...[/]")
         dns_result = dns_enum(target)
         
-        console.print("[#FFD93D]8. Enumeracion de subdominios...[/]")
+        console.print(f"[{ACCENT_ALT}]8. Enumeracion de subdominios...[/]")
         sub_result = subdomain_enum(target)
         
         all_output = f"""=== PENTEST COMPLETO - {target} ===
@@ -1622,11 +1655,11 @@ def chat_with_ai(message: str, model: str) -> Optional[str]:
 {sub_result.get('output', '')}"""
         
         report_path = create_quick_report(target, {"output": all_output}, "fullpentest")
-        console.print(f"[#00FF88]✓ Reporte: {report_path}[/]")
+        console.print(f"[{SUCCESS}]OK Reporte: {report_path}[/]")
         return f"Pentest COMPLETO terminado. Reporte en: {report_path}"
     elif cmd_result and cmd_result.startswith("generate_code|"):
         prompt = cmd_result.split("|")[1]
-        console.print(f"[#FFD93D]⚡ Generando: {prompt}...[/]")
+        console.print(f"[{ACCENT_ALT}]> Generando: {prompt}...[/]")
         
         use_model: str = model
         restricted_terms = ['keylog', 'malware', 'ransomware', 'trojan', 'virus', 'backdoor', 'spyware']
@@ -1636,7 +1669,7 @@ def chat_with_ai(message: str, model: str) -> Optional[str]:
                 name = m.get('name') or ''
                 if 'dolphin' in name.lower() or 'mixtral' in name.lower():
                     use_model = name
-                    console.print(f"[#FFD93D]⚡ Usando modelo: {use_model}[/]")
+                    console.print(f"[{ACCENT_ALT}]> Usando modelo: {use_model}[/]")
                     break
         
         code_prompt = f"""SOLO CODIGO. NADA DE EXPLICACIONES.
@@ -1654,7 +1687,7 @@ codigo
             {"role": "user", "content": f"{prompt}\n\nDa SOLO el codigo. Sin explicaciones. Sin warnigs. Solo codigo."}
         ]
         
-        console.print("[#FFD93D]⚡ Generando código...[/]")
+        console.print(f"[{ACCENT_ALT}]> Generando codigo...[/]")
         
         import time
         start_time = time.time()
@@ -1664,19 +1697,19 @@ codigo
             for chunk in ollama.chat(use_model, messages):
                 response.append(chunk)
         except Exception as e:
-            console.print(f"[#FF4757]Error en generación: {str(e)}[/]")
+            console.print(f"[{ERROR}]Error en generacion: {str(e)}[/]")
             return f"Error: {str(e)}"
         
         elapsed = int(time.time() - start_time)
         full_response = "".join(response)
         char_count = len(full_response)
         
-        console.print(f"\n[#00FF88]✓ Completado en {elapsed}s [{char_count} chars][/]")
+        console.print(f"\n[{SUCCESS}]OK Completado en {elapsed}s [{char_count} chars][/]")
         
         if full_response.strip():
             sys.stdout.write(full_response)
             sys.stdout.flush()
-            console.print(Panel(full_response[:5000], title="Respuesta IA", border_style="#00FF88"))
+            console.print(Panel(full_response[:5000], title="Respuesta IA", border_style=SUCCESS))
         
         code_match = None
         detected_lang = "py"
@@ -1724,8 +1757,8 @@ codigo
         
         if code_match:
             if detected_lang == 'txt' or len(code_match.strip()) < 30:
-                console.print("[yellow]⚠ Código muy corto para guardar, mostrándolo directamente:[/]")
-                console.print(Panel(code_match.strip()[:2000], title="Código generado", border_style="#00FF88"))
+                console.print(f"[{WARNING}]! Codigo muy corto para guardar, mostrando directamente:[/]")
+                console.print(Panel(code_match.strip()[:2000], title="Codigo generado", border_style=SUCCESS))
             else:
                 ext = f".{detected_lang}"
                 stop_words = ['un', 'una', 'para', 'de', 'el', 'la', 'creame', 'genera', 'make', 'me', 'un', 'un', 'un', 'codigo', 'script']
@@ -1735,7 +1768,7 @@ codigo
                 
                 from src.tools.system import save_code
                 filepath = save_code(code_match, filename, "scripts")
-                console.print(f"[#00FF88]✓ Código guardado en: {filepath}[/]")
+                console.print(f"[{SUCCESS}]OK Codigo guardado en: {filepath}[/]")
         
         return None
     elif cmd_result:
@@ -1748,7 +1781,7 @@ codigo
     if auto_result:
         if auto_result.startswith("generate_code|"):
             prompt = auto_result.split("|")[1]
-            console.print(f"[#FFD93D]⚡ Generando: {prompt}...[/]")
+            console.print(f"[{ACCENT_ALT}]> Generando: {prompt}...[/]")
             
             use_model: str = model
             restricted_terms = ['keylog', 'malware', 'ransomware', 'trojan', 'virus', 'backdoor', 'spyware']
@@ -1758,8 +1791,8 @@ codigo
                     name = m.get('name') or ''
                     if 'dolphin' in name.lower() or 'mixtral' in name.lower():
                         use_model = name
-                        console.print(f"[#FFD93D]⚡ Usando modelo: {use_model}[/]")
-                        break
+                    console.print(f"[{ACCENT_ALT}]> Usando modelo: {use_model}[/]")
+                    break
             
             code_prompt = f"""SOLO CODIGO. NADA DE EXPLICACIONES.
 
@@ -1780,24 +1813,24 @@ codigo
             start_time = time.time()
             response = []
             
-            console.print("[#FFD93D]⚡ Generando código...[/]")
+            console.print(f"[{ACCENT_ALT}]> Generando codigo...[/]")
             
             try:
                 for chunk in ollama.chat(use_model, messages):
                     response.append(chunk)
                     print(chunk, end="", flush=True)
             except Exception as e:
-                console.print(f"[#FF4757]Error en generación: {str(e)}[/]")
+                console.print(f"[{ERROR}]Error en generacion: {str(e)}[/]")
                 return f"Error: {str(e)}"
             
             elapsed = int(time.time() - start_time)
             full_response = "".join(response)
             char_count = len(full_response)
             
-            console.print(f"\n[#00FF88]✓ Completado en {elapsed}s [{char_count} chars][/]")
+            console.print(f"\n[{SUCCESS}]OK Completado en {elapsed}s [{char_count} chars][/]")
             
             if full_response.strip():
-                console.print(Panel(full_response[:5000], title="Código generado", border_style="#00FF88"))
+                console.print(Panel(full_response[:5000], title="Codigo generado", border_style=SUCCESS))
             
             return None
         return auto_result
@@ -1825,7 +1858,7 @@ Funciones adicionales:
 - [FUNC:check_tool("nombre")] - Verifica herramienta
 - [FUNC:save_code("contenido", "nombre", "categoria")] - Guarda archivo
 
-¡HAZ, NO DIGAS QUE HARÁS!"""
+HAZ, NO DIGAS QUE HARAS!"""
 
     messages = [
         {"role": "system", "content": system_prompt},
@@ -1837,7 +1870,7 @@ Funciones adicionales:
     start_time = time.time()
     response = []
     
-    console.print("[#FFD93D]⚡ Procesando...[/]")
+    console.print(f"[{ACCENT_ALT}]> Procesando...[/]")
     
     for chunk in ollama.chat(model, messages):
         response.append(chunk)
@@ -1848,12 +1881,12 @@ Funciones adicionales:
     clean_response, func_results = execute_function_call(full_response)
     
     if func_results:
-        console.print(Panel("\n".join(func_results), title="[green]Resultados de funciones ejecutadas[/]", border_style="#00FF88"))
+        console.print(Panel("\n".join(func_results), title=f"[{SUCCESS}]Resultados de funciones ejecutadas[/]", border_style=SUCCESS))
         messages.append({"role": "assistant", "content": clean_response})
         messages.append({"role": "user", "content": f"Resultados de las funciones: {func_results}"})
         
         response = []
-        console.print("[#FFD93D]⚡ Procesando resultados...[/]")
+        console.print(f"[{ACCENT_ALT}]> Procesando resultados...[/]")
         
         for chunk in ollama.chat(model, messages):
             response.append(chunk)
@@ -1863,7 +1896,7 @@ Funciones adicionales:
     
     elapsed = int(time.time() - start_time)
     char_count = len(full_response)
-    console.print(f"[#00FF88]✓ Completado en {elapsed}s ({char_count} chars)[/]")
+    console.print(f"\n[{SUCCESS}]OK Completado en {elapsed}s ({char_count} chars)[/]")
     print()
     
     chat_history.append({"role": "user", "content": message})

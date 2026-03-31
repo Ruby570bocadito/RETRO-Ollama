@@ -12,6 +12,7 @@ from src.tools.pentest import (
     dns_enum, subdomain_enum
 )
 from src.reports.generator import create_quick_report
+from src.cli_theme import SUCCESS, ERROR, WARNING, ACCENT, ACCENT_ALT
 
 console = Console()
 
@@ -36,26 +37,26 @@ class ScanCommands:
         
         # Handle stealth separately as it has custom logic
         if cmd == "/stealth":
-            console.print(f"[#FFD93D]🔍 Escaneo con evasion de IDS/Firewall en {target}...[/]")
-            console.print(f"[#FF4757]⚠️ Usando tecnicas: fragmented, slow, source-port manipulation...[/]")
+            console.print(f"[{ACCENT}]> Escaneo con evasion de IDS/Firewall en {target}...[/]")
+            console.print(f"[{ERROR}]! Usando tecnicas: fragmented, slow, source-port manipulation...[/]")
             result = stealth_scan(target)
             
             if result.get("success"):
-                console.print(Panel(result["output"][:3000], title=f"Stealth Scan - {target}", border_style="#FF6B35"))
+                console.print(Panel(result["output"][:3000], title=f"Stealth Scan - {target}", border_style=ACCENT))
             else:
-                console.print(Panel(result.get("error", "Error"), title="Error", border_style="#FF4757"))
+                console.print(Panel(result.get("error", "Error"), title="Error", border_style=ERROR))
             return "Escaneo sigiloso completado."
         
         # Execute standard scan
         if cmd in scan_func_map:
-            console.print(f"[#FFD93D]🔍 Ejecutando {cmd} en {target}...[/]")
+            console.print(f"[{ACCENT_ALT}]> Ejecutando {cmd} en {target}...[/]")
             result = scan_func_map[cmd](target)
             
             if result.get("success"):
-                border_style = "#00FF88" if cmd in ["/scan", "/full", "/os"] else "#FF6B35"
+                border_style = SUCCESS if cmd in ["/scan", "/full", "/os"] else ACCENT
                 console.print(Panel(result["output"][:3000], title=f"{cmd} - {target}", border_style=border_style))
             else:
-                console.print(Panel(result.get("error", "Error"), title="Error", border_style="#FF4757"))
+                console.print(Panel(result.get("error", "Error"), title="Error", border_style=ERROR))
             
             return f"Escaneo completado: {cmd}"
         
@@ -68,7 +69,7 @@ class ScanCommands:
             return "Uso: /enum <target> (ej: /enum 192.168.1.1)"
         
         target = args.strip()
-        console.print(f"[#FFD93D]🔍 Enumeracion completa en {target}...[/]")
+        console.print(f"[{ACCENT_ALT}]> Enumeracion completa en {target}...[/]")
         
         steps = [
             ("1. Escaneo de puertos...", port_scan, "Ports"),
@@ -80,10 +81,10 @@ class ScanCommands:
         all_outputs = []
         
         for step_desc, func, title in steps:
-            console.print(f"[#FFD93D]{step_desc}[/]")
+            console.print(f"[{ACCENT_ALT}]{step_desc}[/]")
             result = func(target)
             if result.get("success"):
-                border_style = "#00FF88" if title in ["Ports", "OS"] else "#FF6B35"
+                border_style = SUCCESS if title in ["Ports", "OS"] else ACCENT
                 console.print(Panel(result["output"][:2000], title=f"{title} - {target}", border_style=border_style))
                 all_outputs.append(f"{title}:\n{result.get('output', '')}\n")
             else:
@@ -91,7 +92,7 @@ class ScanCommands:
         
         full_output = "\n".join(all_outputs)
         report_path = create_quick_report(target, {"output": full_output}, "enum")
-        console.print(f"[#00FF88]✓ Reporte: {report_path}[/]")
+        console.print(f"[{SUCCESS}]OK Reporte: {report_path}[/]")
         return f"Enumeracion completada. Reporte: {report_path}"
 
     @staticmethod
@@ -101,10 +102,10 @@ class ScanCommands:
             return "Uso: /autopwn <target> (ej: /autopwn 192.168.1.1)"
         
         target = args.strip()
-        console.print(f"[#FF4757]⚡ Pentest automático en {target}...[/]")
+        console.print(f"[{ERROR}]* Pentest automatico en {target}...[/]")
         
         steps = [
-            ("1. Escaneo rápido...", quick_scan),
+            ("1. Escaneo rapido...", quick_scan),
             ("2. Escaneo de vulnerabilidades...", vuln_scan),
             ("3. Escaneo web...", web_scan),
             ("4. Escaneo de directorios...", dir_scan),
@@ -113,15 +114,15 @@ class ScanCommands:
         outputs = []
         
         for step_desc, func in steps:
-            console.print(f"[#FFD93D]{step_desc}[/]")
+            console.print(f"[{ACCENT_ALT}]{step_desc}[/]")
             result = func(target)
             if result.get("success"):
                 outputs.append(f"{step_desc.split(' ')[1]}:\n{result.get('output', '')}\n")
         
         full_output = "\n".join(outputs)
         report_path = create_quick_report(target, {"output": full_output}, "autopwn")
-        console.print(f"[#00FF88]✓ Reporte: {report_path}[/]")
-        return f"Pentest automático completado. Reporte en: {report_path}"
+        console.print(f"[{SUCCESS}]OK Reporte: {report_path}[/]")
+        return f"Pentest automatico completado. Reporte en: {report_path}"
 
     @staticmethod
     def handle_fullpentest(args: str) -> str:
@@ -130,7 +131,7 @@ class ScanCommands:
             return "Uso: /fullpentest <target> (ej: /fullpentest 192.168.1.1)"
         
         target = args.strip()
-        console.print(f"[#FF4757]⚡ PENTEST COMPLETO en {target}...[/]")
+        console.print(f"[{ERROR}]* PENTEST COMPLETO en {target}...[/]")
         
         steps = [
             ("1. Escaneo rapido...", quick_scan),
@@ -146,7 +147,7 @@ class ScanCommands:
         outputs = []
         
         for step_desc, func in steps:
-            console.print(f"[#FFD93D]{step_desc}[/]")
+            console.print(f"[{ACCENT_ALT}]{step_desc}[/]")
             result = func(target)
             if result.get("success"):
                 outputs.append(f"{step_desc.split(' ')[1]}:\n{result.get('output', '')}\n")
@@ -156,5 +157,5 @@ class ScanCommands:
 """ + "\n".join(outputs)
         
         report_path = create_quick_report(target, {"output": all_output}, "fullpentest")
-        console.print(f"[#00FF88]✓ Reporte: {report_path}[/]")
+        console.print(f"[{SUCCESS}]OK Reporte: {report_path}[/]")
         return f"Pentest completo completado. Reporte en: {report_path}"

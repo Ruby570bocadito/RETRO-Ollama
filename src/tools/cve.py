@@ -68,7 +68,7 @@ def download_cisa_kev(force: bool = False) -> bool:
             data = r.json()
             with open(CVE_DB_FILE, "w", encoding="utf-8") as f:
                 json.dump(data, f, indent=2)
-            print(f"✓ Descargados {len(data.get('vulnerabilities', []))} CVEs")
+            print(f"OK Descargados {len(data.get('vulnerabilities', []))} CVEs")
             return True
     except Exception as e:
         print(f"Error descargando: {e}")

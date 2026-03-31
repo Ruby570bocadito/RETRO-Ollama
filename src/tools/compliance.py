@@ -216,7 +216,7 @@ def generate_compliance_report(results: List[Dict], framework: str) -> str:
     md += "|---|---|---|---|\n"
     
     for result in results:
-        status_icon = "✅" if result.get("status") == "pass" else "❌" if result.get("status") == "fail" else "❓"
+        status_icon = "OK" if result.get("status") == "pass" else "FAIL" if result.get("status") == "fail" else "??"
         md += f"| {result.get('id')} | {result.get('title')} | {result.get('severity')} | {status_icon} |\n"
     
     return md

@@ -15,104 +15,104 @@ MODES = {
     "autonomous": {
         "name": "Autonomous",
         "color": "#808080",
-        "description": "Agente autónomo - Pensamiento, ejecución automática",
-        "icon": "🤖"
+        "description": "Agente autonomo - Pensamiento, ejecucion automatica",
+        "icon": "[A]"
     },
     "pentester": {
         "name": "Pentester",
         "color": "#FF6B35",
         "description": "Modo ataque - Vulnerabilidades, exploits, pentesting",
-        "icon": "⚔️"
+        "icon": "[P]"
     },
     "blue": {
         "name": "Blue Team",
         "color": "#00A8E8",
         "description": "Modo defensa - Seguridad, malware, hardening",
-        "icon": "🛡️"
+        "icon": "[B]"
     },
     "osint": {
         "name": "OSINT",
         "color": "#00FF88",
-        "description": "Investigación - Whois, subdomains, Shodan",
-        "icon": "🔍"
+        "description": "Investigacion - Whois, subdomains, Shodan",
+        "icon": "[O]"
     },
     "forense": {
         "name": "Forense",
         "color": "#9B59B6",
-        "description": "Análisis forense - Evidencias, disk, memory",
-        "icon": "🔎"
+        "description": "Analisis forense - Evidencias, disk, memory",
+        "icon": "[F]"
     },
     "bugbounty": {
         "name": "Bug Bounty",
         "color": "#F1C40F",
         "description": "Bug hunting - Recon, vuln hunting, reporting",
-        "icon": "🎯"
+        "icon": "[BB]"
     },
     "redteam": {
         "name": "Red Team",
         "color": "#E74C3C",
-        "description": "Simulación de adversario - APT, movimiento lateral",
-        "icon": "🎭"
+        "description": "Simulacion de adversario - APT, movimiento lateral",
+        "icon": "[RT]"
     },
     "vulnassessment": {
         "name": "Vuln Assessment",
         "color": "#3498DB",
-        "description": "Evaluación de vulnerabilidades - CVSS, remediación",
-        "icon": "📊"
+        "description": "Evaluacion de vulnerabilidades - CVSS, remediacion",
+        "icon": "[VA]"
     },
     "network": {
         "name": "Network",
         "color": "#2ECC71",
-        "description": "Seguridad de redes - Firewalls, segmentación",
-        "icon": "🌐"
+        "description": "Seguridad de redes - Firewalls, segmentacion",
+        "icon": "[N]"
     },
     "webapp": {
         "name": "Web App",
         "color": "#9B59B6",
         "description": "Pentesting web - OWASP Top 10, inyecciones",
-        "icon": "🌍"
+        "icon": "[W]"
     },
     "social": {
         "name": "Social Engineering",
         "color": "#E67E22",
-        "description": "Ingeniería social - Phishing, vishing, awareness",
-        "icon": "🎣"
+        "description": "Ingenieria social - Phishing, vishing, awareness",
+        "icon": "[SE]"
     },
     "devsecops": {
         "name": "DevSecOps",
         "color": "#00CED1",
         "description": "CI/CD security - SAST, DAST, container security",
-        "icon": "⚙️"
+        "icon": "[DS]"
     },
     "malware": {
         "name": "Malware Analysis",
         "color": "#DC143C",
-        "description": "Análisis de malware - Sandbox, reverse engineering",
-        "icon": "🦠"
+        "description": "Analisis de malware - Sandbox, reverse engineering",
+        "icon": "[M]"
     },
     "iot": {
         "name": "IoT Security",
         "color": "#FF8C00",
         "description": "Seguridad IoT - Protocolos Zigbee, MQTT, CoAP",
-        "icon": "📡"
+        "icon": "[IoT]"
     },
     "cloud": {
         "name": "Cloud Security",
         "color": "#4169E1",
         "description": "AWS, Azure, GCP - Misconfigs, cloud Pentest",
-        "icon": "☁️"
+        "icon": "[C]"
     },
     "mobile": {
         "name": "Mobile Security",
         "color": "#32CD32",
         "description": "Android/iOS - APK analysis, jailbreak detection",
-        "icon": "📱"
+        "icon": "[Mob]"
     },
     "compliance": {
         "name": "Compliance",
         "color": "#FFD700",
-        "description": "HIPAA, PCI-DSS, ISO27001 - Auditorías",
-        "icon": "📋"
+        "description": "HIPAA, PCI-DSS, ISO27001 - Auditorias",
+        "icon": "[Comp]"
     }
 }
 

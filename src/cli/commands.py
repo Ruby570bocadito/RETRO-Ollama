@@ -96,7 +96,7 @@ def config(
         table.add_column("Status", style="white")
         
         for service, configured in keys.items():
-            status = "[green]✓ Configured[/green]" if configured else "[red]✗ Not configured[/red]"
+            status = "[green]OK Configured[/green]" if configured else "[red]X Not configured[/red]"
             table.add_row(service, status)
         
         console.print(table)

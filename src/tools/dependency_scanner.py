@@ -161,7 +161,7 @@ if __name__ == "__main__":
     # When run directly, perform scan and print results
     result = scan_dependencies()
     if result["success"]:
-        print("✓ Dependency scan completed successfully")
+        print("OK Dependency scan completed successfully")
         if result.get("vulnerabilities"):
             print(f"Found {len(result['vulnerabilities'])} vulnerabilities:")
             for vuln in result["vulnerabilities"]:
@@ -169,7 +169,7 @@ if __name__ == "__main__":
         else:
             print("No vulnerabilities found.")
     else:
-        print("✗ Dependency scan failed:")
+        print("X Dependency scan failed:")
         print(result.get("error", "Unknown error"))
         if result.get("raw_output"):
             print("Output:", result["raw_output"])

@@ -3,7 +3,7 @@ from src.ai.prompts import SYSTEM_PROMPTS
 MODE_PROMPTS = {
     "autonomous": f"""{SYSTEM_PROMPTS['autonomous']}
 
-[🤖 MODO AUTÓNOMO - AGENTE INTELIGENTE]
+[P MODO AUTONOMO - AGENTE INTELIGENTE]
 
 Eres el agente de pentesting más avanzado con MEMORIA y CAPACIDAD DE RAZONAMIENTO.
 

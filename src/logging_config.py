@@ -114,7 +114,7 @@ class PTailogger:
 
     def success(self, message: str, **kwargs: Any) -> None:
         """Log success message (custom level)."""
-        self.logger.info(f"[green]✓[/green] {message}", extra={**self.extra, **kwargs})
+        self.logger.info(f"[green]OK[/green] {message}", extra={**self.extra, **kwargs})
 
     def scan_start(self, target: str, scan_type: str) -> None:
         """Log scan start."""

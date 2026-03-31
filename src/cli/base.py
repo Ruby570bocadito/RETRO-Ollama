@@ -70,19 +70,19 @@ def print_status(current_model: Optional[str] = None, output_dir: str = "./outpu
 
 def print_error(message: str) -> None:
     """Print error message."""
-    console.print(f"[red]✗ {message}[/red]")
+    console.print(f"[red]X {message}[/red]")
 
 
 def print_success(message: str) -> None:
     """Print success message."""
-    console.print(f"[green]✓ {message}[/green]")
+    console.print(f"[green]OK {message}[/green]")
 
 
 def print_warning(message: str) -> None:
     """Print warning message."""
-    console.print(f"[yellow]⚠ {message}[/yellow]")
+    console.print(f"[yellow]WARN {message}[/yellow]")
 
 
 def print_info(message: str) -> None:
     """Print info message."""
-    console.print(f"[cyan]ℹ {message}[/cyan]")
+    console.print(f"[cyan]INFO {message}[/cyan]")
